@@ -12,8 +12,8 @@ The default keybindings for crwm are pretty simple.
 
 - `mod + q`: closes focused window
 - `mod + shift + q`: quits window manager
-- `mod + d`: opens dmenu_run
-- `mod + enter`: opens terminal
+- `mod + d`: opens launcher (default: `dmenu_run`)
+- `mod + enter`: opens terminal (default: `st`)
 - `mod + up|down|left|right`: moves focused window up|down|left|right
 
 ## Building
