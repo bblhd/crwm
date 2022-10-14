@@ -29,7 +29,7 @@ void open_terminal(void) {
 	spawn(termcmd);
 }
 
-char *menucmd[] = { "rc", "/home/awi/scripts/dmenu.rc", NULL };
+char *menucmd[] = { "dmenu_run", NULL };
 void open_menu(void) {
 	spawn(menucmd);
 }
