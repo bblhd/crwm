@@ -58,6 +58,9 @@ void setup(void);
 int eventHandler(void);
 
 int main(int argc, char *argv[]) {
+	DISREGARD(argc);
+	DISREGARD(argv);
+	
 	setup();
 	
 	page_init(&testpage);
@@ -73,7 +76,7 @@ int main(int argc, char *argv[]) {
 void setup(void) {
 	conn = xcb_connect(NULL, NULL);
 	if (xcb_connection_has_error(conn)) {
-		die("xcb connection error\n");
+		die("Couldn't connect to X.\n");
 	}
 	
 	screen = xcb_setup_roots_iterator(xcb_get_setup(conn)).data;
