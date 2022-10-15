@@ -11,8 +11,6 @@
 #include "page.h"
 
 void page_init(struct Page *page) {
-	page->mapped = 0;
-	
 	page->columns = malloc(sizeof(struct Column));
 	page->columns_max = 1;
 	page->columns_len = 0;
@@ -124,9 +122,9 @@ void page_addColumn(struct Page *page, size_t c) {
 		if (i != c) page->columns[i].width -= page->columns[i].width / (page->columns_len);
 		cx += page->columns[i].width;
 	}
-	//if (page->columns_len > 0) {
-		//page->columns[page->columns_len-1].width += screen->width_in_pixels - cx;
-	//}
+	if (page->columns_len > 0) {
+		page->columns[page->columns_len-1].width += screen->width_in_pixels - cx;
+	}
 }
 void page_removeColumn(struct Page *page, size_t c) {
 	for (size_t i = c; i < page->columns_len-1; i++) {
@@ -139,16 +137,15 @@ void page_removeColumn(struct Page *page, size_t c) {
 		page->columns[i].width += page->columns[i].width / (page->columns_len);
 		cx += page->columns[i].width;
 	}
-	//if (page->columns_len > 0) {
-		//page->columns[page->columns_len-1].width += screen->width_in_pixels - cx;
-	//}
+	if (page->columns_len > 0) {
+		page->columns[page->columns_len-1].width += screen->width_in_pixels - cx;
+	}
 }
 
 void page_insert(struct Page *page, xcb_drawable_t window, uint16_t x, uint16_t y) {
 	size_t c = 0;
 	size_t cr = 0;
 	size_t r = 0;
-	
 	uint16_t cx = 0;
 	
 	if (page->columns_len > 0) {
@@ -167,6 +164,9 @@ void page_insert(struct Page *page, xcb_drawable_t window, uint16_t x, uint16_t 
 	}
 	
 	page_addRow(page, c, cr, r, window);
+}
+void page_insertThrow(struct Page *page, xcb_drawable_t window) {
+	page_insert(page, window, 0, 0);
 }
 
 void findWindow(struct Page *page, xcb_drawable_t window, size_t *c, size_t *cr, size_t *r) {
@@ -275,18 +275,14 @@ void page_moveLeft(struct Page *page, xcb_drawable_t window) {
 }
 
 void page_map(struct Page *page) {
-	if (page->mapped) return;
 	for (size_t i = 0; i < page->rows_len; i++) {
 		xcb_map_window(conn, page->rows[i].window);
 	}
-	page->mapped = 1;
 }
 
 void page_unmap(struct Page *page) {
-	if (!page->mapped) return;
 	for (size_t i = 0; i < page->rows_len; i++) {
 		xcb_unmap_window(conn, page->rows[i].window);
 	}
-	page->mapped = 0;
 }
 

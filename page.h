@@ -5,7 +5,6 @@
 #include <stdbool.h>
 
 struct Page {
-	bool mapped;
 	struct Column {
 		uint16_t width;
 		size_t span;
@@ -26,6 +25,7 @@ void page_init(struct Page *page);
 void page_free(struct Page *page);
 
 void page_insert(struct Page *page, xcb_drawable_t window, uint16_t x, uint16_t y);
+void page_insertThrow(struct Page *page, xcb_drawable_t window);
 void page_remove(struct Page *page, xcb_drawable_t window);
 
 void page_map(struct Page *page);

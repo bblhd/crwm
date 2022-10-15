@@ -9,4 +9,9 @@ struct Key {
 
 extern struct Key *keys;
 
+extern struct Page *mappedPage;
+
+void pages_init();
+void pages_fini();
+
 #endif

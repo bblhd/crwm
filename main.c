@@ -6,8 +6,6 @@
 #include "page.h"
 #include "controls.h"
 
-#define DISREGARD(x) ((void)(x))
-
 xcb_connection_t *conn;
 xcb_screen_t *screen;
 xcb_drawable_t focusedWindow;
@@ -36,6 +34,27 @@ xcb_get_geometry_reply_t *queryGeometry(xcb_drawable_t window) {
 	return xcb_get_geometry_reply(conn, xcb_get_geometry(conn, window), NULL);
 }
 
+void warpMouseToCorner(xcb_drawable_t window, enum Corner corner) {
+	uint16_t x, y;
+	
+	xcb_get_geometry_reply_t *geom = queryGeometry(window);
+	x = corner==TOPRIGHT || corner==BOTTOMRIGHT ? geom->width : 0;
+	y = corner==BOTTOMLEFT || corner==BOTTOMRIGHT ? geom->height : 0;
+	free(geom);
+	xcb_warp_pointer(conn, XCB_NONE, window, 0,0,0,0, x,y);
+}
+
+void warpMouseToCenter(xcb_drawable_t window) {
+	uint16_t x, y;
+	
+	xcb_get_geometry_reply_t *geom = queryGeometry(window);
+	x = geom->width >> 1;
+	y = geom->height >> 1;
+	free(geom);
+	xcb_warp_pointer(conn, XCB_NONE, window, 0,0,0,0, x,y);
+	
+}
+
 xcb_keycode_t *xcb_get_keycodes(xcb_keysym_t keysym) {
 	xcb_key_symbols_t *keysyms = xcb_key_symbols_alloc(conn);
 	xcb_keycode_t *keycode;
@@ -52,8 +71,6 @@ xcb_keysym_t xcb_get_keysym(xcb_keycode_t keycode) {
 	return keysym;
 }
 
-struct Page testpage;
-
 void setup(void);
 int eventHandler(void);
 
@@ -63,12 +80,11 @@ int main(int argc, char *argv[]) {
 	
 	setup();
 	
-	page_init(&testpage);
-	page_map(&testpage);
+	pages_init();
 	
 	while (eventHandler());
 	
-	page_free(&testpage);
+	pages_fini();
 	
 	return 0;
 }
@@ -88,7 +104,7 @@ void setup(void) {
 		| XCB_EVENT_MASK_PROPERTY_CHANGE
 	});
 	
-	//grab controls
+	//section: grab controls
 	
 	xcb_flush(conn);
 	
@@ -108,13 +124,6 @@ void setup(void) {
 	}
 	
 	xcb_flush(conn);
-	
-	xcb_grab_button(
-		conn, 0, screen->root,
-		XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE,
-		XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, screen->root, XCB_NONE,
-		XCB_BUTTON_INDEX_1, MOD1
-	);
 	
 	xcb_grab_button(
 		conn, 0, screen->root,
@@ -187,20 +196,25 @@ void handleEnterNotify(xcb_enter_notify_event_t *event) {
 
 void handleDestroyNotify(xcb_destroy_notify_event_t *event) {
 	if (focusedWindow == event->window) focusedWindow = 0;
-	page_remove(&testpage, event->window);
+	page_remove(mappedPage, event->window);
 	xcb_kill_client(conn, event->window);
 }
 
-void handleButtonPress(xcb_button_press_event_t *e) {
-	DISREGARD(e);
+void grab_begin(uint8_t action);
+void grab_position(uint16_t x, uint16_t y);
+void grab_continue(xcb_timestamp_t time, uint16_t x, uint16_t y);
+void grab_end();
+
+void handleButtonPress(xcb_button_press_event_t *event) {
+	DISREGARD(event);
 }
 
-void handleButtonRelease(xcb_button_release_event_t *e) {
-	DISREGARD(e);
+void handleButtonRelease(xcb_button_release_event_t *event) {
+	DISREGARD(event);
 }
 
-void handleMotionNotify(xcb_motion_notify_event_t *e) {
-	DISREGARD(e);
+void handleMotionNotify(xcb_motion_notify_event_t *event) {
+	DISREGARD(event);
 }
 
 void handleKeyPress(xcb_key_press_event_t *event) {
@@ -218,7 +232,7 @@ void handleMapRequest(xcb_map_request_event_t *event) {
 	xcb_flush(conn);
 	
 	xcb_query_pointer_reply_t *pointer = queryPointer(screen->root);
-	page_insert(&testpage, event->window, pointer->root_x, pointer->root_y);
+	page_insert(mappedPage, event->window, pointer->root_x, pointer->root_y);
 	free(pointer);
 }
 

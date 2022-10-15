@@ -4,6 +4,8 @@
 #include <xcb/xcb.h>
 #include <xcb/xcb_keysyms.h>
 
+#define DISREGARD(x) ((void)(x))
+
 /* DEFAULT KEYS
 * The following are the possible mask definitions.  Note
 * that these definitions may vary between X implementations
@@ -31,7 +33,10 @@ extern xcb_screen_t *screen;
 extern xcb_drawable_t focusedWindow;
 extern xcb_gcontext_t graphical;
 
-extern struct Page testpage;
+enum Corner {TOPLEFT, TOPRIGHT, BOTTOMLEFT, BOTTOMRIGHT};
+
+void warpMouseToCorner(xcb_drawable_t window, enum Corner);
+void warpMouseToCenter(xcb_drawable_t window);
 
 xcb_query_pointer_reply_t *queryPointer(xcb_drawable_t window);
 xcb_get_geometry_reply_t *queryGeometry(xcb_drawable_t window);
