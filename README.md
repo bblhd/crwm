@@ -17,6 +17,9 @@ The default keybindings for crwm are pretty simple.
 - `mod + up|down|left|right`: moves focused window up|down|left|right
 - `mod + <n>`: moves to page &lt;n&gt;
 - `mod + shift + <n>`: moves focused window to page &lt;n&gt;
+
+All configuration is currently done by editing the source code, although this may be subject to change.
+
 ## Building
 
 Compile using `make` or `make compile`, and then install it to /usr/local/bin by running `make install` as root.
