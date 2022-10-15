@@ -223,7 +223,7 @@ void page_moveUp(struct Page *page, xcb_drawable_t window) {
 	size_t c, cr, r;
 	findWindow(page, window, &c, &cr, &r);
 	if (!~c) return;
-	if (r != cr) {
+	if (r != 0) {
 		page_swapY(page, cr+r-1);
 	}
 }
@@ -232,7 +232,7 @@ void page_moveDown(struct Page *page, xcb_drawable_t window) {
 	size_t c, cr, r;
 	findWindow(page, window, &c, &cr, &r);
 	if (!~c) return;
-	if (r != cr + page->columns[c].span-1) {
+	if (r != page->columns[c].span-1) {
 		page_swapY(page, cr+r);
 	}
 }
