@@ -15,8 +15,8 @@ The default keybindings for crwm are pretty simple.
 - `mod + d`: opens launcher (default: `dmenu_run`)
 - `mod + enter`: opens terminal (default: `st`)
 - `mod + up|down|left|right`: moves focused window up|down|left|right
-- `mod + <n>`: moves to page <n>
-- `mod + shift + <n>`: moves focused window to page <n>
+- `mod + <n>`: moves to page &lt;n&gt;
+- `mod + shift + <n>`: moves focused window to page &lt;n&gt;
 ## Building
 
 Compile using `make` or `make compile`, and then install it to /usr/local/bin by running `make install` as root.
