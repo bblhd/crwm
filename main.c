@@ -197,7 +197,6 @@ void handleEnterNotify(xcb_enter_notify_event_t *event) {
 void handleDestroyNotify(xcb_destroy_notify_event_t *event) {
 	if (focusedWindow == event->window) focusedWindow = 0;
 	page_remove(mappedPage, event->window);
-	xcb_kill_client(conn, event->window);
 }
 
 void grab_begin(uint8_t action);

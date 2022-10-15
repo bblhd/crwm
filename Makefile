@@ -2,7 +2,7 @@ name:=crwm
 dest:=/usr/local/bin
 
 compile: 
-	gcc -Wall -Wextra -Werror -no-pie -lxcb -lxcb-keysyms -lm -o $(name) main.c page.c controls.c
+	gcc -Wall -Wextra -Werror -lxcb -lxcb-keysyms -lm -o $(name) main.c page.c controls.c
 
 install:
 	mkdir -p $(dest)

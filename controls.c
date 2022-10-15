@@ -86,12 +86,14 @@ void pages_fini() {
 }
 
 void pages_switch(int n) {
+	if (mappedPage == &pages[n]) return;
 	page_unmap(mappedPage);
 	mappedPage = &(pages[n]);
 	page_map(mappedPage);
 }
 
 void pages_send(int n) {
+	if (mappedPage == &pages[n]) return;
 	page_remove(mappedPage, focusedWindow);
 	xcb_unmap_window(conn, focusedWindow);
 	page_insertThrow(&(pages[n]), focusedWindow);
@@ -108,7 +110,7 @@ void spawn(char **command) {
 }
 
 void killclient() {
-	xcb_kill_client(conn, focusedWindow);
+	xcb_destroy_window(conn, focusedWindow);
 }
 
 void closewm() {
