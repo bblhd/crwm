@@ -248,10 +248,10 @@ void page_moveRight(struct Page *page, xcb_drawable_t window) {
 	page_removeRow(page, c, cr, r);
 	if (page->columns[c].span == 0) {
 		page_removeColumn(page, c);
-		page_addRow(page, c, cr, 0, window);
-	} else {
-		page_addRow(page, c+1, cr+page->columns[c].span, 0, window);
+		c-=1;
+		cr-=page->columns[c].span;
 	}
+	page_addRow(page, c+1, cr+page->columns[c].span, 0, window);
 	page_fixWidths(page);
 }
 
@@ -267,10 +267,8 @@ void page_moveLeft(struct Page *page, xcb_drawable_t window) {
 	page_removeRow(page, c, cr, r);
 	if (page->columns[c].span == 0) {
 		page_removeColumn(page, c);
-		page_addRow(page, c-1, cr-page->columns[c-1].span, 0, window);
-	} else {
-		page_addRow(page, c-1, cr-page->columns[c-1].span, 0, window);
 	}
+	page_addRow(page, c-1, cr-page->columns[c-1].span, 0, window);
 	page_fixWidths(page);
 }
 

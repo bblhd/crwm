@@ -81,8 +81,9 @@ int main(int argc, char *argv[]) {
 	setup();
 	
 	pages_init();
-	
-	while (eventHandler());
+
+	//usleep is theoretically depreceated but it is annoying not to use
+	while (eventHandler()) usleep(20000);
 	
 	pages_fini();
 	
@@ -146,10 +147,12 @@ void handleFocusIn(xcb_focus_in_event_t *);
 void handleFocusOut(xcb_focus_out_event_t *);
 
 int eventHandler(void) {
-	if (xcb_connection_has_error(conn)) return 0;
-	xcb_generic_event_t *ev = xcb_wait_for_event(conn);
+	xcb_generic_event_t *ev;
 	
-	if (ev != NULL) {
+	while (1) {
+		if (xcb_connection_has_error(conn)) return 0;
+		if (!(ev = xcb_wait_for_event(conn))) break;
+
 		switch (ev->response_type & ~0x80) {
 			case XCB_ENTER_NOTIFY: handleEnterNotify((xcb_enter_notify_event_t *) ev); break;
 			case XCB_DESTROY_NOTIFY: handleDestroyNotify((xcb_destroy_notify_event_t  *) ev); break;
