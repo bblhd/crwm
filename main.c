@@ -138,6 +138,7 @@ void setup(void) {
 
 void handleEnterNotify(xcb_enter_notify_event_t *);
 void handleDestroyNotify(xcb_destroy_notify_event_t *);
+void handleUnmapNotify(xcb_unmap_notify_event_t *);
 void handleButtonPress(xcb_button_press_event_t *);
 void handleButtonRelease(xcb_button_release_event_t *);
 void handleMotionNotify(xcb_motion_notify_event_t *);
@@ -154,6 +155,7 @@ int eventHandler(void) {
 		switch (ev->response_type & ~0x80) {
 			case XCB_ENTER_NOTIFY: handleEnterNotify((xcb_enter_notify_event_t *) ev); break;
 			case XCB_DESTROY_NOTIFY: handleDestroyNotify((xcb_destroy_notify_event_t  *) ev); break;
+			case XCB_UNMAP_NOTIFY: handleUnmapNotify((xcb_unmap_notify_event_t  *) ev); break;
 			case XCB_BUTTON_PRESS: handleButtonPress((xcb_button_press_event_t *) ev); break;
 			case XCB_BUTTON_RELEASE: handleButtonRelease((xcb_button_release_event_t *) ev); break;
 			case XCB_MOTION_NOTIFY: handleMotionNotify((xcb_motion_notify_event_t *) ev); break;
@@ -199,11 +201,10 @@ void handleDestroyNotify(xcb_destroy_notify_event_t *event) {
 	if (focusedWindow == event->window) focusedWindow = 0;
 	page_remove(mappedPage, event->window);
 }
-
-void grab_begin(uint8_t action);
-void grab_position(uint16_t x, uint16_t y);
-void grab_continue(xcb_timestamp_t time, uint16_t x, uint16_t y);
-void grab_end();
+void handleUnmapNotify(xcb_unmap_notify_event_t *event) {
+	if (focusedWindow == event->window) focusedWindow = 0;
+	page_remove(mappedPage, event->window);
+}
 
 void handleButtonPress(xcb_button_press_event_t *event) {
 	DISREGARD(event);
