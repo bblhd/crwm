@@ -6,65 +6,37 @@
 #include "controls.h"
 #include "page.h"
 
-void spawn(char **command);
-void pages_switch(int n);
-void pages_send(int n);
-
 char *termcmd[] = { "st", NULL };
-void open_terminal(void) {spawn(termcmd);}
-
 char *menucmd[] = { "dmenu_run", NULL };
-void open_menu(void) {spawn(menucmd);}
 
-#define PAGEKEY(keysym, name) {MOD1, keysym, switchpage_##name}, {MOD1|MOD2, keysym, sendpage_##name}
+#define PAGEKEY(keysym, n)\
+	{MOD1, keysym, pages_switch, {.u=n}},\
+	{MOD1|MOD2, keysym, pages_send, {.u=n}}
 
-void switchpage_1() {pages_switch(0);}
-void switchpage_2() {pages_switch(1);}
-void switchpage_3() {pages_switch(2);}
-void switchpage_4() {pages_switch(3);}
-void switchpage_5() {pages_switch(4);}
-void switchpage_6() {pages_switch(5);}
-void switchpage_7() {pages_switch(6);}
-void switchpage_8() {pages_switch(7);}
-void switchpage_9() {pages_switch(8);}
-
-void sendpage_1() {pages_send(0);}
-void sendpage_2() {pages_send(1);}
-void sendpage_3() {pages_send(2);}
-void sendpage_4() {pages_send(3);}
-void sendpage_5() {pages_send(4);}
-void sendpage_6() {pages_send(5);}
-void sendpage_7() {pages_send(6);}
-void sendpage_8() {pages_send(7);}
-void sendpage_9() {pages_send(8);}
-
-void killclient();
-void closewm();
-void move_up();
-void move_down();
-void move_left();
-void move_right();
-
-void grow_vertical();
-void grow_horizontal();
-void shrink_vertical();
-void shrink_horizontal();
+void pages_switch(union Arg arg);
+void pages_send(union Arg arg);
+void spawn(union Arg arg);
+void killclient(union Arg arg);
+void closewm(union Arg arg);
+void move(union Arg arg);
+void grow_vertical(union Arg arg);
+void grow_horizontal(union Arg arg);
 
 struct Key *keys = (struct Key[]) {
-	{MOD1, 0xff0d, open_terminal}, //0xff0d = XK_Enter
-	{MOD1, 0x0064, open_menu}, //0x0064 = XK_d
-	{MOD1, 0x0071, killclient}, //0x0071 = XK_q
-	{MOD1|MOD2, 0x0071, closewm}, //0x0071 = XK_q
+	{MOD1, 0xff0d, spawn, {.c=termcmd}}, //0xff0d = XK_Enter
+	{MOD1, 0x0064, spawn, {.c=menucmd}}, //0x0064 = XK_d
+	{MOD1, 0x0071, killclient, {0}}, //0x0071 = XK_q
+	{MOD1|MOD2, 0x0071, closewm, {0}}, //0x0071 = XK_q
 	
-	{MOD1, 0xff52, move_up}, //0xff52 = XK_Up
-	{MOD1, 0xff54, move_down}, //0xff54 = XK_Down
-	{MOD1, 0xff51, move_left}, //0xff51 = XK_Left
-	{MOD1, 0xff53, move_right}, //0xff53 = XK_Right
+	{MOD1, 0xff52, move, {.p=(void *) page_moveUp}}, //0xff52 = XK_Up
+	{MOD1, 0xff54, move, {.p=(void *) page_moveDown}}, //0xff54 = XK_Down
+	{MOD1, 0xff51, move, {.p=(void *) page_moveLeft}}, //0xff51 = XK_Left
+	{MOD1, 0xff53, move, {.p=(void *) page_moveRight}}, //0xff53 = XK_Right
 	
-	{MOD1, 0x0076, shrink_vertical}, //0xff52 = XK_v
-	{MOD1|MOD2, 0x0076, grow_vertical}, //0xff54 = XK_v
-	{MOD1, 0x0063, shrink_horizontal}, //0xff51 = XK_c
-	{MOD1|MOD2, 0x0063, grow_horizontal}, //0xff53 = XK_c
+	{MOD1, 0x0076, grow_vertical, {-1}}, //0xff52 = XK_v
+	{MOD1|MOD2, 0x0076, grow_vertical, {1}}, //0xff54 = XK_v
+	{MOD1, 0x0063, grow_horizontal, {-1}}, //0xff51 = XK_c
+	{MOD1|MOD2, 0x0063, grow_horizontal, {1}}, //0xff53 = XK_c
 	
 	PAGEKEY(0x0031, 1), //0x0031 = XK_1
 	PAGEKEY(0x0032, 2), //0x0032 = XK_2
@@ -76,7 +48,7 @@ struct Key *keys = (struct Key[]) {
 	PAGEKEY(0x0038, 8), //0x0038 = XK_8
 	PAGEKEY(0x0039, 9), //0x0039 = XK_9
 	
-	{0, 0, NULL}
+	{0, 0, NULL, {0}}
 };
 
 
@@ -96,74 +68,52 @@ void pages_fini() {
 	}
 }
 
-void pages_switch(int n) {
-	if (mappedPage == &pages[n]) return;
+void pages_switch(union Arg arg) {
+	if (mappedPage == &pages[arg.u]) return;
 	page_unmap(mappedPage);
-	mappedPage = &(pages[n]);
+	mappedPage = &pages[arg.u];
 	page_map(mappedPage);
 }
 
-void pages_send(int n) {
-	if (mappedPage == &pages[n]) return;
+void pages_send(union Arg arg) {
+	if (mappedPage == &pages[arg.u]) return;
 	page_remove(mappedPage, focusedWindow);
 	xcb_unmap_window(conn, focusedWindow);
-	page_insertThrow(&(pages[n]), focusedWindow);
+	page_insertThrow(&pages[arg.u], focusedWindow);
 }
 
-void spawn(char **command) {
+void spawn(union Arg arg) {
 	if (fork() == 0) {
 		setsid();
 		if (fork() != 0) _exit(0);
-		execvp(command[0], command);
+		execvp(arg.c[0], arg.c);
 		_exit(0);
 	}
 	wait(NULL);
 }
 
-void killclient() {
+void killclient(union Arg arg) {
+	DISREGARD(arg);
 	xcb_destroy_window(conn, focusedWindow);
 }
 
-void closewm() {
+void closewm(union Arg arg) {
+	DISREGARD(arg);
 	if (conn != NULL) xcb_disconnect(conn);
 }
 
-void move_down() {
-	page_moveDown(mappedPage, focusedWindow);
+void move(union Arg arg) {
+	void (*movefunc)(struct Page *, xcb_drawable_t) = ((void (*)(struct Page *, xcb_drawable_t)) (arg.p));
+	movefunc(mappedPage, focusedWindow);
 	warpMouseToCenter(focusedWindow);
 }
 
-void move_up() {
-	page_moveUp(mappedPage, focusedWindow);
+void grow_vertical(union Arg arg) {
+	page_changeRowWeight(mappedPage, focusedWindow, arg.i);
 	warpMouseToCenter(focusedWindow);
 }
 
-void move_right() {
-	page_moveRight(mappedPage, focusedWindow);
-	warpMouseToCenter(focusedWindow);
-}
-
-void move_left() {
-	page_moveLeft(mappedPage, focusedWindow);
-	warpMouseToCenter(focusedWindow);
-}
-
-void grow_vertical() {
-	page_changeRowWeight(mappedPage, focusedWindow, 1);
-	warpMouseToCenter(focusedWindow);
-}
-
-void grow_horizontal() {
-	page_changeColumnWeight(mappedPage, focusedWindow, 1);
-	warpMouseToCenter(focusedWindow);
-}
-
-void shrink_vertical() {
-	page_changeRowWeight(mappedPage, focusedWindow, -1);
-	warpMouseToCenter(focusedWindow);
-}
-
-void shrink_horizontal() {
-	page_changeColumnWeight(mappedPage, focusedWindow, -1);
+void grow_horizontal(union Arg arg) {
+	page_changeColumnWeight(mappedPage, focusedWindow, arg.i);
 	warpMouseToCenter(focusedWindow);
 }

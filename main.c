@@ -149,7 +149,7 @@ void setFocusColor(xcb_window_t window, uint32_t c) {
 void keybinding(uint16_t mod, xcb_keysym_t keysym) {
 	for (int i = 0; keys[i].func != NULL; i++) {
 		if (mod == keys[i].mod && keysym == keys[i].keysym) {
-			keys[i].func();
+			keys[i].func(keys[i].arg);
 		}
 	}
 }
