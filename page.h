@@ -36,4 +36,7 @@ void page_moveDown(struct Page *page, xcb_drawable_t window);
 void page_moveRight(struct Page *page, xcb_drawable_t window);
 void page_moveLeft(struct Page *page, xcb_drawable_t window);
 
+void page_changeColumnWeight(struct Page *page, xcb_drawable_t window, int amount);
+void page_changeRowWeight(struct Page *page, xcb_drawable_t window, int amount);
+
 #endif

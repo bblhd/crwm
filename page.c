@@ -295,6 +295,24 @@ void page_moveLeft(struct Page *page, xcb_drawable_t window) {
 	page_updateHeights(page, c-1, cr+1-page->cols[c-1].span);
 }
 
+void page_changeColumnWeight(struct Page *page, xcb_drawable_t window, int amount) {
+	size_t c, cr, r;
+	findWindow(page, window, &c, &cr, &r);
+	if (!~c) return;
+	if (page->cols[c].weight+amount <= 0) return;
+	page->cols[c].weight += amount;
+	page_updateWidths(page);
+}
+
+void page_changeRowWeight(struct Page *page, xcb_drawable_t window, int amount) {
+	size_t c, cr, r;
+	findWindow(page, window, &c, &cr, &r);
+	if (!~c) return;
+	if (page->rows[cr+r].weight+amount <= 0) return;
+	page->rows[cr+r].weight += amount;
+	page_updateHeights(page, c, cr);
+}
+
 void page_map(struct Page *page) {
 	for (size_t i = 0; i < page->rows_len; i++) {
 		xcb_map_window(conn, page->rows[i].window);

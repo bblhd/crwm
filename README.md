@@ -17,6 +17,8 @@ The default keybindings for crwm are pretty simple.
 - `mod + up|down|left|right`: moves focused window up|down|left|right
 - `mod + <n>`: moves to page &lt;n&gt;
 - `mod + shift + <n>`: moves focused window to page &lt;n&gt;
+- `mod + c|v`: shrinks focused window horizontally|vertically
+- `mod + shift + c|v`: grows focused window horizontally|vertically
 
 All configuration is currently done by editing the source code, although this may be subject to change.
 

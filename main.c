@@ -237,7 +237,6 @@ void warpMouseToCenter(xcb_drawable_t window) {
 	y = geom->height >> 1;
 	free(geom);
 	xcb_warp_pointer(conn, XCB_NONE, window, 0,0,0,0, x,y);
-	
 }
 
 xcb_keycode_t *xcb_get_keycodes(xcb_keysym_t keysym) {

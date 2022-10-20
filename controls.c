@@ -45,15 +45,26 @@ void move_down();
 void move_left();
 void move_right();
 
+void grow_vertical();
+void grow_horizontal();
+void shrink_vertical();
+void shrink_horizontal();
+
 struct Key *keys = (struct Key[]) {
-	{MOD1, 0xff52, move_up}, //0xff52 = XK_Up
-	{MOD1, 0xff54, move_down}, //0xff54 = XK_Down
-	{MOD1, 0xff51, move_left}, //0xff51 = XK_Left
-	{MOD1, 0xff53, move_right}, //0xff53 = XK_Right
 	{MOD1, 0xff0d, open_terminal}, //0xff0d = XK_Enter
 	{MOD1, 0x0064, open_menu}, //0x0064 = XK_d
 	{MOD1, 0x0071, killclient}, //0x0071 = XK_q
 	{MOD1|MOD2, 0x0071, closewm}, //0x0071 = XK_q
+	
+	{MOD1, 0xff52, move_up}, //0xff52 = XK_Up
+	{MOD1, 0xff54, move_down}, //0xff54 = XK_Down
+	{MOD1, 0xff51, move_left}, //0xff51 = XK_Left
+	{MOD1, 0xff53, move_right}, //0xff53 = XK_Right
+	
+	{MOD1, 0x0076, shrink_vertical}, //0xff52 = XK_v
+	{MOD1|MOD2, 0x0076, grow_vertical}, //0xff54 = XK_v
+	{MOD1, 0x0063, shrink_horizontal}, //0xff51 = XK_c
+	{MOD1|MOD2, 0x0063, grow_horizontal}, //0xff53 = XK_c
 	
 	PAGEKEY(0x0031, 1), //0x0031 = XK_1
 	PAGEKEY(0x0032, 2), //0x0032 = XK_2
@@ -134,5 +145,25 @@ void move_right() {
 
 void move_left() {
 	page_moveLeft(mappedPage, focusedWindow);
+	warpMouseToCenter(focusedWindow);
+}
+
+void grow_vertical() {
+	page_changeRowWeight(mappedPage, focusedWindow, 1);
+	warpMouseToCenter(focusedWindow);
+}
+
+void grow_horizontal() {
+	page_changeColumnWeight(mappedPage, focusedWindow, 1);
+	warpMouseToCenter(focusedWindow);
+}
+
+void shrink_vertical() {
+	page_changeRowWeight(mappedPage, focusedWindow, -1);
+	warpMouseToCenter(focusedWindow);
+}
+
+void shrink_horizontal() {
+	page_changeColumnWeight(mappedPage, focusedWindow, -1);
 	warpMouseToCenter(focusedWindow);
 }
