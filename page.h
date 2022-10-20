@@ -6,14 +6,14 @@
 
 struct Page {
 	struct Column {
-		uint16_t width;
+		uint16_t weight;
 		size_t span;
-	} *columns;
-	size_t columns_max;
-	size_t columns_len;
+	} *cols;
+	size_t cols_max;
+	size_t cols_len;
 	
 	struct Row {
-		uint16_t height;
+		uint16_t weight;
 		xcb_drawable_t window;
 	} *rows;
 	size_t rows_max;

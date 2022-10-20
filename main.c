@@ -27,58 +27,26 @@ int die(char *errstr) {
 	exit(write(STDERR_FILENO, errstr, strlen(errstr)) < 0 ? -1 : 1);
 }
 
-xcb_query_pointer_reply_t *queryPointer(xcb_drawable_t window) {
-	return xcb_query_pointer_reply(conn, xcb_query_pointer(conn, window), NULL); 	
-}
-xcb_get_geometry_reply_t *queryGeometry(xcb_drawable_t window) {
-	return xcb_get_geometry_reply(conn, xcb_get_geometry(conn, window), NULL);
-}
+xcb_query_pointer_reply_t *queryPointer(xcb_drawable_t window);
+xcb_get_geometry_reply_t *queryGeometry(xcb_drawable_t window);
 
-void warpMouseToCorner(xcb_drawable_t window, enum Corner corner) {
-	uint16_t x, y;
-	
-	xcb_get_geometry_reply_t *geom = queryGeometry(window);
-	x = corner==TOPRIGHT || corner==BOTTOMRIGHT ? geom->width : 0;
-	y = corner==BOTTOMLEFT || corner==BOTTOMRIGHT ? geom->height : 0;
-	free(geom);
-	xcb_warp_pointer(conn, XCB_NONE, window, 0,0,0,0, x,y);
-}
+void warpMouseToCorner(xcb_drawable_t window, enum Corner corner);
+void warpMouseToCenter(xcb_drawable_t window);
 
-void warpMouseToCenter(xcb_drawable_t window) {
-	uint16_t x, y;
-	
-	xcb_get_geometry_reply_t *geom = queryGeometry(window);
-	x = geom->width >> 1;
-	y = geom->height >> 1;
-	free(geom);
-	xcb_warp_pointer(conn, XCB_NONE, window, 0,0,0,0, x,y);
-	
-}
+xcb_keycode_t *xcb_get_keycodes(xcb_keysym_t keysym);
+xcb_keysym_t xcb_get_keysym(xcb_keycode_t keycode);
 
-xcb_keycode_t *xcb_get_keycodes(xcb_keysym_t keysym) {
-	xcb_key_symbols_t *keysyms = xcb_key_symbols_alloc(conn);
-	xcb_keycode_t *keycode;
-	keycode = (!keysyms ? NULL : xcb_key_symbols_get_keycode(keysyms, keysym));
-	xcb_key_symbols_free(keysyms);
-	return keycode;
-}
-
-xcb_keysym_t xcb_get_keysym(xcb_keycode_t keycode) {
-	xcb_key_symbols_t *keysyms = xcb_key_symbols_alloc(conn);
-	xcb_keysym_t keysym;
-	keysym = (!keysyms ? 0 : xcb_key_symbols_get_keysym(keysyms, keycode, 0));
-	xcb_key_symbols_free(keysyms);
-	return keysym;
-}
-
-void setup(void);
+void setup_xcb(void);
+void setup_controls(void);
 int eventHandler(void);
 
 int main(int argc, char *argv[]) {
 	DISREGARD(argc);
 	DISREGARD(argv);
 	
-	setup();
+	setup_xcb();
+	setup_controls();
+	xcb_flush(conn);
 	
 	pages_init();
 	
@@ -90,7 +58,7 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 
-void setup(void) {
+void setup_xcb(void) {
 	conn = xcb_connect(NULL, NULL);
 	if (xcb_connection_has_error(conn)) {
 		die("Couldn't connect to X.\n");
@@ -98,20 +66,20 @@ void setup(void) {
 	
 	screen = xcb_setup_roots_iterator(xcb_get_setup(conn)).data;
 	
-	xcb_change_window_attributes_checked(conn, screen->root, XCB_CW_EVENT_MASK, (uint32_t[]) {
-		XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT
-		| XCB_EVENT_MASK_STRUCTURE_NOTIFY
-		| XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY
-		| XCB_EVENT_MASK_PROPERTY_CHANGE
-	});
-	
-	//section: grab controls
-	
+	xcb_change_window_attributes_checked(
+		conn, screen->root, XCB_CW_EVENT_MASK, (uint32_t[]) {
+			XCB_EVENT_MASK_STRUCTURE_NOTIFY
+			| XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY
+			| XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT
+			| XCB_EVENT_MASK_PROPERTY_CHANGE
+		}
+	);
+}
+
+void setup_controls(void) {
 	xcb_flush(conn);
 	
 	xcb_ungrab_key(conn, XCB_GRAB_ANY, screen->root, XCB_MOD_MASK_ANY);
-	
-	xcb_flush(conn);
 	
 	for (int i = 0; keys[i].func != NULL; i++) {
 		xcb_keycode_t *keycode = xcb_get_keycodes(keys[i].keysym);
@@ -123,17 +91,6 @@ void setup(void) {
 			);
 		}
 	}
-	
-	xcb_flush(conn);
-	
-	xcb_grab_button(
-		conn, 0, screen->root,
-		XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE,
-		XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, screen->root, XCB_NONE,
-		XCB_BUTTON_INDEX_3, MOD1
-	);
-	
-	xcb_flush(conn);
 }
 
 void handleEnterNotify(xcb_enter_notify_event_t *);
@@ -174,7 +131,11 @@ int eventHandler(void) {
 void setFocus(xcb_drawable_t window) {
 	if (window > 0 && window != screen->root) {
 		xcb_set_input_focus(conn, XCB_INPUT_FOCUS_POINTER_ROOT, window, XCB_CURRENT_TIME);
-		xcb_configure_window(conn, window, XCB_CONFIG_WINDOW_STACK_MODE, (uint32_t[]) {XCB_STACK_MODE_ABOVE});
+		xcb_configure_window(
+			conn, window, XCB_CONFIG_WINDOW_STACK_MODE, (uint32_t[]) {
+				XCB_STACK_MODE_ABOVE
+			}
+		);
 		focusedWindow = window;
 	}
 }
@@ -225,10 +186,16 @@ void handleKeyPress(xcb_key_press_event_t *event) {
 void handleMapRequest(xcb_map_request_event_t *event) {
 	xcb_map_window(conn, event->window);
 	xcb_flush(conn);
-	xcb_configure_window(conn, event->window, XCB_CONFIG_WINDOW_BORDER_WIDTH, (uint32_t[]) {BORDER_WIDTH});
-	xcb_change_window_attributes_checked(conn, event->window, XCB_CW_EVENT_MASK, (uint32_t[]) {
-		XCB_EVENT_MASK_ENTER_WINDOW | XCB_EVENT_MASK_FOCUS_CHANGE
-	});
+	xcb_configure_window(
+		conn, event->window, XCB_CONFIG_WINDOW_BORDER_WIDTH, (uint32_t[]) {
+			BORDER_WIDTH
+		}
+	);
+	xcb_change_window_attributes_checked(
+		conn, event->window, XCB_CW_EVENT_MASK, (uint32_t[]) {
+			XCB_EVENT_MASK_ENTER_WINDOW | XCB_EVENT_MASK_FOCUS_CHANGE
+		}
+	);
 	setFocus(event->window);
 	xcb_flush(conn);
 	
@@ -243,4 +210,48 @@ void handleFocusIn(xcb_focus_in_event_t *event) {
 
 void handleFocusOut(xcb_focus_out_event_t *event) {
 	setFocusColor(event->event, BORDER_COLOR_UNFOCUSED);
+}
+
+xcb_query_pointer_reply_t *queryPointer(xcb_drawable_t window) {
+	return xcb_query_pointer_reply(conn, xcb_query_pointer(conn, window), NULL); 	
+}
+xcb_get_geometry_reply_t *queryGeometry(xcb_drawable_t window) {
+	return xcb_get_geometry_reply(conn, xcb_get_geometry(conn, window), NULL);
+}
+
+void warpMouseToCorner(xcb_drawable_t window, enum Corner corner) {
+	uint16_t x, y;
+	
+	xcb_get_geometry_reply_t *geom = queryGeometry(window);
+	x = corner==TOPRIGHT || corner==BOTTOMRIGHT ? geom->width : 0;
+	y = corner==BOTTOMLEFT || corner==BOTTOMRIGHT ? geom->height : 0;
+	free(geom);
+	xcb_warp_pointer(conn, XCB_NONE, window, 0,0,0,0, x,y);
+}
+
+void warpMouseToCenter(xcb_drawable_t window) {
+	uint16_t x, y;
+	
+	xcb_get_geometry_reply_t *geom = queryGeometry(window);
+	x = geom->width >> 1;
+	y = geom->height >> 1;
+	free(geom);
+	xcb_warp_pointer(conn, XCB_NONE, window, 0,0,0,0, x,y);
+	
+}
+
+xcb_keycode_t *xcb_get_keycodes(xcb_keysym_t keysym) {
+	xcb_key_symbols_t *keysyms = xcb_key_symbols_alloc(conn);
+	xcb_keycode_t *keycode;
+	keycode = (!keysyms ? NULL : xcb_key_symbols_get_keycode(keysyms, keysym));
+	xcb_key_symbols_free(keysyms);
+	return keycode;
+}
+
+xcb_keysym_t xcb_get_keysym(xcb_keycode_t keycode) {
+	xcb_key_symbols_t *keysyms = xcb_key_symbols_alloc(conn);
+	xcb_keysym_t keysym;
+	keysym = (!keysyms ? 0 : xcb_key_symbols_get_keysym(keysyms, keycode, 0));
+	xcb_key_symbols_free(keysyms);
+	return keysym;
 }
