@@ -8,17 +8,19 @@ The essential premise behind crwm is that a series of columns each containing a 
 
 To make crwm your default window manager, replace the command to run your window manager in your `.xinitrc` file with `crwm`.
 
-The default keybindings for crwm are pretty simple.
+The default keybindings for crwm are pretty simple. Default modifier key is meta/windows/command key.
 
-- `mod + q`: closes focused window
-- `mod + shift + q`: quits window manager
-- `mod + d`: opens launcher (default: `dmenu_run`)
-- `mod + enter`: opens terminal (default: `st`)
-- `mod + up|down|left|right`: moves focused window up|down|left|right
-- `mod + <n>`: moves to page &lt;n&gt;
-- `mod + shift + <n>`: moves focused window to page &lt;n&gt;
-- `mod + c|v`: shrinks focused window horizontally|vertically
-- `mod + shift + c|v`: grows focused window horizontally|vertically
+| Keys | Action |
+| --- | --- |
+| `mod + q` | closes focused window
+| `mod + shift + q` | quits window manager
+| `mod + d` | opens launcher (default: `dmenu_run`)
+| `mod + enter` | opens terminal (default: `st`)
+| `mod + [up,down,left,right]` | moves focused window [up,down,left,right]
+| `mod + [1-9]` | moves to page [1-9]
+| `mod + shift + [1-9]` | moves focused window to page [1-9]
+| `mod + [c,v]` | shrinks focused window [horizontally,vertically]
+| `mod + shift + [c,v]` | grows focused window [horizontally,vertically]
 
 All configuration is currently done by editing the source code, although this may be subject to change.
 
