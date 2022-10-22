@@ -24,9 +24,11 @@ The default keybindings for crwm are pretty simple. Default modifier key is meta
 
 All configuration is currently done by editing the source code, although this may be subject to change.
 
-## Building
+## Installing
 
 Compile using `make` or `make compile`, and then install it to /usr/local/bin by running `make install` as root.
+
+To uninstall just remove the executable from wherever it was installed (eg: `rm /usr/local/bin/crwm`)
 
 ## Thanks
 
