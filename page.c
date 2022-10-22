@@ -215,7 +215,7 @@ void page_remove(struct Page *page, xcb_drawable_t window) {
 }
 
 void page_swapY(struct Page *page, size_t rr) {
-	uint16_t ay, by;
+	uint16_t ay, bh;
 	xcb_get_geometry_reply_t *geom;
 	
 	geom = queryGeometry(page->rows[rr].window);
@@ -223,10 +223,10 @@ void page_swapY(struct Page *page, size_t rr) {
 	free(geom);
 	
 	geom = queryGeometry(page->rows[rr+1].window);
-	by = geom->y;
+	bh = geom->height;
 	free(geom);
 	
-	xcb_configure_window(conn, page->rows[rr].window, XCB_CONFIG_WINDOW_Y, (uint32_t[]) {by});
+	xcb_configure_window(conn, page->rows[rr].window, XCB_CONFIG_WINDOW_Y, (uint32_t[]) {ay + bh + 2*BORDER_WIDTH});
 	xcb_configure_window(conn, page->rows[rr+1].window, XCB_CONFIG_WINDOW_Y, (uint32_t[]) {ay});
 	
 	struct Row _temp = page->rows[rr];
@@ -296,6 +296,7 @@ void page_moveLeft(struct Page *page, xcb_drawable_t window) {
 }
 
 void page_changeColumnWeight(struct Page *page, xcb_drawable_t window, int amount) {
+	if (page->cols_len < 2) return;
 	size_t c, cr, r;
 	findWindow(page, window, &c, &cr, &r);
 	if (!~c) return;
@@ -308,6 +309,7 @@ void page_changeRowWeight(struct Page *page, xcb_drawable_t window, int amount) 
 	size_t c, cr, r;
 	findWindow(page, window, &c, &cr, &r);
 	if (!~c) return;
+	if (page->cols[c].span < 2) return;
 	if (page->rows[cr+r].weight+amount <= 0) return;
 	page->rows[cr+r].weight += amount;
 	page_updateHeights(page, c, cr);
