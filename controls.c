@@ -40,15 +40,15 @@ struct Key *keys = (struct Key[]) {
 	{MOD1, 0x0063, grow_horizontal, {-1}}, //0xff51 = XK_c
 	{MOD1|MOD2, 0x0063, grow_horizontal, {1}}, //0xff53 = XK_c
 	
-	PAGEKEY(0x0031, 1), //0x0031 = XK_1
-	PAGEKEY(0x0032, 2), //0x0032 = XK_2
-	PAGEKEY(0x0033, 3), //0x0033 = XK_3
-	PAGEKEY(0x0034, 4), //0x0034 = XK_4
-	PAGEKEY(0x0035, 5), //0x0035 = XK_5
-	PAGEKEY(0x0036, 6), //0x0036 = XK_6
-	PAGEKEY(0x0037, 7), //0x0037 = XK_7
-	PAGEKEY(0x0038, 8), //0x0038 = XK_8
-	PAGEKEY(0x0039, 9), //0x0039 = XK_9
+	PAGEKEY(0x0031, 0), //0x0031 = XK_1
+	PAGEKEY(0x0032, 1), //0x0032 = XK_2
+	PAGEKEY(0x0033, 2), //0x0033 = XK_3
+	PAGEKEY(0x0034, 3), //0x0034 = XK_4
+	PAGEKEY(0x0035, 4), //0x0035 = XK_5
+	PAGEKEY(0x0036, 5), //0x0036 = XK_6
+	PAGEKEY(0x0037, 6), //0x0037 = XK_7
+	PAGEKEY(0x0038, 7), //0x0038 = XK_8
+	PAGEKEY(0x0039, 8), //0x0039 = XK_9
 	
 	{0, 0, NULL, {0}}
 };
