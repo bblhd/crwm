@@ -29,3 +29,4 @@ Compile using `make` or `make compile`, and then install it to /usr/local/bin by
 ## Thanks
 
 - I used the [xwm](https://github.com/mcpcpc/xwm) by [Michael Czigler](https://github.com/mcpcpc) as a reference which was incredibly helpful due to the lack of documention on xcb
+- Thanks to [Ivan Tikhonov](https://github.com/ITikhonov) for their [program that closes windows with xcb](https://github.com/ITikhonov/wm/blob/master/wmclose.c), of which the code to do so is based off

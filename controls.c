@@ -1,4 +1,6 @@
 
+#include <stdlib.h>
+#include <string.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -92,9 +94,27 @@ void spawn(union Arg arg) {
 	wait(NULL);
 }
 
+xcb_atom_t xcb_atom_get(char *name) {
+	xcb_intern_atom_reply_t *reply = xcb_intern_atom_reply(conn, xcb_intern_atom(conn,0,strlen(name),name), NULL);
+	xcb_atom_t atom = reply ? reply->atom : XCB_NONE;
+	free(reply);
+	return atom;
+}
+
 void killclient(union Arg arg) {
 	DISREGARD(arg);
-	xcb_destroy_window(conn, focusedWindow);
+	xcb_client_message_event_t ev;
+	
+	//todo: get atoms in setup and store permanantly
+	memset(&ev, 0, sizeof(ev));
+	ev.response_type = XCB_CLIENT_MESSAGE;
+	ev.window = focusedWindow;
+	ev.format = 32;
+	ev.data.data32[1] = XCB_CURRENT_TIME;
+	ev.type = xcb_atom_get("WM_PROTOCOLS");
+	ev.data.data32[0] = xcb_atom_get("WM_DELETE_WINDOW");
+	
+	xcb_send_event(conn, 0, focusedWindow, XCB_EVENT_MASK_NO_EVENT, (char *) &ev);
 }
 
 void closewm(union Arg arg) {
