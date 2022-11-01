@@ -20,3 +20,7 @@ void screens_add(xcb_screen_t *screen) {
 	screens[screens_len-1].width = screen->width_in_pixels;
 	screens[screens_len-1].height = screen->height_in_pixels;
 }
+
+void screens_update() {
+	xcb_screen_iterator_t iter = xcb_setup_roots_iterator(setup);
+}
