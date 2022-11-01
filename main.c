@@ -2,11 +2,35 @@
 #include <xcb/xcb.h>
 #include <xcb/xcb_keysyms.h>
 
+#include "pages.h"
+
 xcb_connection_t *conn;
 xcb_screen_t *screen;
 xcb_drawable_t focusedWindow;
 
 xcb_atom_t atoms[ATOM_FINAL];
+
+int die(char *errstr) {
+	exit(write(STDERR_FILENO, errstr, strlen(errstr)) < 0 ? -1 : 1);
+}
+
+void setup();
+
+int main(int argc, char *argv[]) {
+	setup();
+}
+
+void setupAtoms();
+
+void setup() {
+	conn = xcb_connect(NULL, NULL);
+	if (xcb_connection_has_error(conn)) {
+		die("Couldn't connect to X.\n");
+	}
+	
+	screens_setup();
+	setupAtoms();
+}
 
 xcb_atom_t xcb_atom_get(char *name) {
 	xcb_intern_atom_reply_t *reply = xcb_intern_atom_reply(conn, xcb_intern_atom(conn, 0, strlen(name), name), NULL);

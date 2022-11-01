@@ -1,3 +1,5 @@
+#ifndef CRWM_PAGES_H
+#define CRWM_PAGES_H
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -8,7 +10,8 @@ struct Screen {
 };
 
 struct Page {
-	struct Screen *mapped;
+	struct Screen *screen;
+	bool isMapped;
 	struct Column *columns;
 	uint16_t max, len;
 };
@@ -25,3 +28,7 @@ struct Row {
 	xcb_drawable_t window;
 	uint16_t weight;
 };
+
+void screens_setup(xcb_connection_t *);
+
+#endif
