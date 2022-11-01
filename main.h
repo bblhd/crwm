@@ -1,44 +1,17 @@
-#ifndef MAIN_H
-#define MAIN_H
-
-#include <xcb/xcb.h>
-#include <xcb/xcb_keysyms.h>
-
-#define DISREGARD(x) ((void)(x))
-
-/* DEFAULT KEYS
-* The following are the possible mask definitions.  Note
-* that these definitions may vary between X implementations
-* and keyboard models.
-*     XCB_MOD_MASK_1       -> Alt_L Alt_R Meta_L
-*     XCB_MOD_MASK_2       -> Num_Lock
-*     XCB_MOD_MASK_3       -> ISO_Level3_Shift
-*     XCB_MOD_MASK_4       -> Super_L Super_R SuperL Hyper_L
-*     XCB_MOD_MASK_5       -> ISO_Level5_Shifta
-*     XCB_MOD_MASK_SHIFT
-*     XCB_MOD_MASK_CONTROL
-*     XCB_MOD_MASK_LOCK
-*     XCB_MOD_MASK_ANY
-*/
-
-#define MOD1 XCB_MOD_MASK_4
-#define MOD2 XCB_MOD_MASK_SHIFT
-
-#define BORDER_WIDTH 1
-#define BORDER_COLOR_UNFOCUSED 0x9eeeee /* 0xRRGGBB */
-#define BORDER_COLOR_FOCUSED   0x55aaaa /* 0xRRGGBB */
-
-extern xcb_connection_t *conn;
-extern xcb_screen_t *screen;
-extern xcb_drawable_t focusedWindow;
-extern xcb_gcontext_t graphical;
-
-enum Corner {TOPLEFT, TOPRIGHT, BOTTOMLEFT, BOTTOMRIGHT};
-
-void warpMouseToCorner(xcb_drawable_t window, enum Corner);
-void warpMouseToCenter(xcb_drawable_t window);
-
-xcb_query_pointer_reply_t *queryPointer(xcb_drawable_t window);
-xcb_get_geometry_reply_t *queryGeometry(xcb_drawable_t window);
-
-#endif
+enum XcbAtomLabel {
+	UTF8_STRING,
+	WM_PROTOCOLS,
+	WM_DELETE_WINDOW,
+	WM_STATE,
+	WM_TAKE_FOCUS,
+	_NET_ACTIVE_WINDOW,
+	_NET_SUPPORTED,
+	_NET_WM_NAME,
+	_NET_WM_STATE,
+	_NET_SUPPORTING_WM_CHECK,
+	_NET_WM_STATE_FULLSCREEN,
+	_NET_WM_WINDOW_TYPE,
+	_NET_WM_WINDOW_TYPE_DIALOG,
+	_NET_CLIENT_LIST,
+	ATOM_FINAL
+};
