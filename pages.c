@@ -3,10 +3,16 @@
 
 #include <pages.h>
 
-struct Page pages[9];
+#define PAGE_COUNT 9
+struct Page pages[PAGE_COUNT];
 
 size_t screens_max, screens_len;
 struct Screen *screens;
+
+struct Screen *screens_getFromRoot(xcb_drawable_t root) {
+	for (size_t i = 0; i < screens_len; i++) if (root == screens[i].root) return screens + i;
+	return NULL;
+}
 
 void screens_add(xcb_screen_t *screen) {
 	screens_len++;
@@ -30,14 +36,28 @@ void screens_add(xcb_screen_t *screen) {
 }
 
 int screens_addif(xcb_screen_t *screen) {
-	for (size_t i = 0; i < screens_len; i++) if (screen->root == screens[i].root) return 0;
-	screens_add(screen);
+	if (screens_getFromRoot(screen->root)) return 0;
+	else screens_add(screen);
 	return 1;
 }
 
 void screens_setup(xcb_connection_t *conn) {
-	const xcb_setup_t *setup = xcb_get_setup(conn);
-	for (xcb_screen_iterator_t iter = xcb_setup_roots_iterator(setup); iter.rem; xcb_screen_next(&iter)) {
+	for (xcb_screen_iterator_t iter = xcb_setup_roots_iterator(xcb_get_setup(conn)); iter.rem; xcb_screen_next(&iter)) {
 		screens_addif(iter.data);
 	}
+}
+
+
+void pages_manage(xcb_drawable_t window) {
+	for (int p = 0; p < PAGE_COUNT; p++) {
+		for (int p = 0; p < PAGE_COUNT; p++) {
+		for (int p = 0; p < PAGE_COUNT; p++) {
+		
+	}
+	}
+	}
+}
+
+void pages_unmanage(xcb_drawable_t window) {
+	
 }

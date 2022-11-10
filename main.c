@@ -8,6 +8,24 @@ xcb_connection_t *conn;
 xcb_screen_t *screen;
 xcb_drawable_t focusedWindow;
 
+enum XcbAtomLabel {
+	UTF8_STRING,
+	WM_PROTOCOLS,
+	WM_DELETE_WINDOW,
+	WM_STATE,
+	WM_TAKE_FOCUS,
+	_NET_ACTIVE_WINDOW,
+	_NET_SUPPORTED,
+	_NET_WM_NAME,
+	_NET_WM_STATE,
+	_NET_SUPPORTING_WM_CHECK,
+	_NET_WM_STATE_FULLSCREEN,
+	_NET_WM_WINDOW_TYPE,
+	_NET_WM_WINDOW_TYPE_DIALOG,
+	_NET_CLIENT_LIST,
+	ATOM_FINAL
+};
+
 xcb_atom_t atoms[ATOM_FINAL];
 
 int die(char *errstr) {
@@ -18,6 +36,7 @@ void setup();
 
 int main(int argc, char *argv[]) {
 	setup();
+	xcb_disconnect(conn);
 }
 
 void setupAtoms();
@@ -27,13 +46,16 @@ void setup() {
 	if (xcb_connection_has_error(conn)) {
 		die("Couldn't connect to X.\n");
 	}
-	
 	screens_setup();
 	setupAtoms();
 }
 
 xcb_atom_t xcb_atom_get(char *name) {
-	xcb_intern_atom_reply_t *reply = xcb_intern_atom_reply(conn, xcb_intern_atom(conn, 0, strlen(name), name), NULL);
+	xcb_intern_atom_reply_t *reply = xcb_intern_atom_reply(
+		conn,
+		xcb_intern_atom(conn, 0, strlen(name), name),
+		NULL
+	);
 	xcb_atom_t atom = reply ? reply->atom : XCB_NONE;
 	free(reply);
 	return atom;
@@ -70,7 +92,7 @@ void handleMappingNotify(xcb_mapping_notify_event_t *event) {
 
 void handleUnmapNotify(xcb_unmap_notify_event_t *event) {
 	//when a program chooses to hide its own window
-	//desired behaviour is to act as if it was closed
+	//desired behaviour is to act pretty much as if it was destroyed
 }
 
 void handleButtonPress(xcb_button_press_event_t *event) {
@@ -108,7 +130,6 @@ int eventHandler(void) {
 	xcb_generic_event_t *ev = xcb_wait_for_event(conn);
 	do {
 		switch (ev->response_type & ~0x80) {
-	[ConfigureNotify] = configurenotify,
 			case XCB_ENTER_NOTIFY: handleEnterNotify((xcb_enter_notify_event_t *) ev); break;
 			case XCB_DESTROY_NOTIFY: handleDestroyNotify((xcb_destroy_notify_event_t *) ev); break;
 			case XCB_MAPPING_NOTIFY: handleMappingNotify((xcb_mapping_notify_event_t *) ev); break;
