@@ -1,8 +1,12 @@
 #ifndef CRWM_PAGES_H
 #define CRWM_PAGES_H
 
+#include <xcb/xcb.h>
+#include <xcb/xcb_keysyms.h>
+
 #include <stdint.h>
 #include <stdbool.h>
+
 
 struct Screen {
 	uint16_t width, height;

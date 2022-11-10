@@ -1,6 +1,8 @@
 #include <xcb/xcb.h>
 #include <xcb/xcb_keysyms.h>
 
+#include <pages.h>
+
 struct Page pages[9];
 
 size_t screens_max, screens_len;

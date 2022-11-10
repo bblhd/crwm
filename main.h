@@ -1,3 +1,12 @@
+#ifndef CRWM_MAIN_H
+#define CRWM_MAIN_H
+
+#include <xcb/xcb.h>
+#include <xcb/xcb_keysyms.h>
+
+#include <stdint.h>
+#include <stdbool.h>
+
 enum XcbAtomLabel {
 	UTF8_STRING,
 	WM_PROTOCOLS,
@@ -15,3 +24,5 @@ enum XcbAtomLabel {
 	_NET_CLIENT_LIST,
 	ATOM_FINAL
 };
+
+#endif
