@@ -1,12 +1,17 @@
 
+#include <unistd.h>
+#include <stdlib.h>
+#include <sys/wait.h>
+#include <string.h>
+
 #include <xcb/xcb.h>
 #include <xcb/xcb_keysyms.h>
 
 #include "pages.h"
+#include "main.h"
 
 xcb_connection_t *conn;
-xcb_screen_t *screen;
-xcb_drawable_t focusedWindow;
+struct Row *focusedRow;
 
 enum XcbAtomLabel {
 	UTF8_STRING,
@@ -28,14 +33,29 @@ enum XcbAtomLabel {
 
 xcb_atom_t atoms[ATOM_FINAL];
 
-int die(char *errstr) {
+void die(char *errstr) {
 	exit(write(STDERR_FILENO, errstr, strlen(errstr)) < 0 ? -1 : 1);
 }
 
+char *termcmd[] = { "st", NULL };
+void spawn(char **command) {
+	if (fork() == 0) {
+		setsid();
+		if (fork() != 0) _exit(0);
+		execvp(command[0], command);
+		_exit(0);
+	}
+	wait(NULL);
+}
+
 void setup();
+int eventHandler(void);
 
 int main(int argc, char *argv[]) {
+	DISREGARD(argc);
+	DISREGARD(argv);
 	setup();
+	while (eventHandler());
 	xcb_disconnect(conn);
 }
 
@@ -46,8 +66,9 @@ void setup() {
 	if (xcb_connection_has_error(conn)) {
 		die("Couldn't connect to X.\n");
 	}
-	screens_setup();
+	screens_setup(conn);
 	setupAtoms();
+	
 }
 
 xcb_atom_t xcb_atom_get(char *name) {
@@ -80,48 +101,60 @@ void setupAtoms() {
 
 void handleEnterNotify(xcb_enter_notify_event_t *event) {
 	//when cursor enters window
+	DISREGARD(event);
 }
 
 void handleDestroyNotify(xcb_destroy_notify_event_t *event) {
 	//when a window is destroyed
+	unmanage(event->window);
 }
 
 void handleMappingNotify(xcb_mapping_notify_event_t *event) {
 	//when keyboard mapping changes, i think
+	DISREGARD(event);
 }
 
 void handleUnmapNotify(xcb_unmap_notify_event_t *event) {
 	//when a program chooses to hide its own window
 	//desired behaviour is to act pretty much as if it was destroyed
+	unmanage(event->window);
 }
 
 void handleButtonPress(xcb_button_press_event_t *event) {
 	//mouse press
+	DISREGARD(event);
+	spawn(termcmd);
 }
 
 void handleButtonRelease(xcb_button_release_event_t *event) {
 	//mouse release
+	DISREGARD(event);
 }
 
 void handleMotionNotify(xcb_motion_notify_event_t *event) {
 	//mouse movement
+	DISREGARD(event);
 }
 
 void handleKeyPress(xcb_key_press_event_t *event) {
 	//self explanatory
+	DISREGARD(event);
 }
 
 void handleMapRequest(xcb_map_request_event_t *event) {
 	//happens when a new window wants to be shown
+	manage(event->window);
 }
 
 
 void handleFocusIn(xcb_focus_in_event_t *event) {
 	//self explanatory
+	DISREGARD(event);
 }
 
 void handleFocusOut(xcb_focus_out_event_t *event) {
 	//self explanatory
+	DISREGARD(event);
 }
 
 int eventHandler(void) {

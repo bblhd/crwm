@@ -14,8 +14,7 @@ struct Screen {
 };
 
 struct Page {
-	struct Screen *screen;
-	bool isMapped;
+	struct Screen *mapped;
 	struct Column *columns;
 	uint16_t max, len;
 };
@@ -24,7 +23,7 @@ struct Column {
 	struct Page *parent;
 	struct Row *rows;
 	uint16_t max, len;
-	uint16_t weight
+	uint16_t weight;
 };
 
 struct Row {
@@ -34,5 +33,7 @@ struct Row {
 };
 
 void screens_setup(xcb_connection_t *);
+void manage(xcb_drawable_t window);
+void unmanage(xcb_drawable_t window);
 
 #endif

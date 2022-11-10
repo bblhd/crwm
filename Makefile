@@ -1,4 +1,4 @@
-name:=crwm
+name:=crwm2
 dest:=/usr/local/bin
 
 compile: 
