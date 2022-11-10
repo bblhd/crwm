@@ -1,35 +1,25 @@
 
 #include <unistd.h>
 #include <stdlib.h>
-#include <sys/wait.h>
+#include <stdbool.h>
 #include <string.h>
 
 #include <xcb/xcb.h>
 #include <xcb/xcb_keysyms.h>
 
-#include "pages.h"
 #include "main.h"
+#include "pages.h"
+#include "controls.h"
 
 xcb_connection_t *conn;
-struct Row *focusedRow;
+xcb_screen_t *screen;
+struct Row *focused;
 
-enum XcbAtomLabel {
-	UTF8_STRING,
-	WM_PROTOCOLS,
-	WM_DELETE_WINDOW,
-	WM_STATE,
-	WM_TAKE_FOCUS,
-	_NET_ACTIVE_WINDOW,
-	_NET_SUPPORTED,
-	_NET_WM_NAME,
-	_NET_WM_STATE,
-	_NET_SUPPORTING_WM_CHECK,
-	_NET_WM_STATE_FULLSCREEN,
-	_NET_WM_WINDOW_TYPE,
-	_NET_WM_WINDOW_TYPE_DIALOG,
-	_NET_CLIENT_LIST,
-	ATOM_FINAL
-};
+bool shouldCloseWM = 0;
+
+void closeWM() {
+	shouldCloseWM = 1;
+}
 
 xcb_atom_t atoms[ATOM_FINAL];
 
@@ -37,26 +27,16 @@ void die(char *errstr) {
 	exit(write(STDERR_FILENO, errstr, strlen(errstr)) < 0 ? -1 : 1);
 }
 
-char *termcmd[] = { "st", NULL };
-void spawn(char **command) {
-	if (fork() == 0) {
-		setsid();
-		if (fork() != 0) _exit(0);
-		execvp(command[0], command);
-		_exit(0);
-	}
-	wait(NULL);
-}
-
 void setup();
 int eventHandler(void);
+void cleanup();
 
 int main(int argc, char *argv[]) {
 	DISREGARD(argc);
 	DISREGARD(argv);
 	setup();
 	while (eventHandler());
-	xcb_disconnect(conn);
+	cleanup();
 }
 
 void setupAtoms();
@@ -66,9 +46,28 @@ void setup() {
 	if (xcb_connection_has_error(conn)) {
 		die("Couldn't connect to X.\n");
 	}
-	screens_setup(conn);
-	setupAtoms();
 	
+	screen = xcb_setup_roots_iterator(xcb_get_setup(conn)).data;
+	
+	xcb_change_window_attributes_checked(
+		conn, screen->root, XCB_CW_EVENT_MASK, (uint32_t []) {
+			XCB_EVENT_MASK_STRUCTURE_NOTIFY
+			| XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY
+			| XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT
+			| XCB_EVENT_MASK_PROPERTY_CHANGE
+		}
+	);
+	
+	setupAtoms();
+	setupControls();
+	setupPages();
+	
+	xcb_flush(conn);
+}
+
+void cleanup() {
+	cleanupControls();
+	xcb_disconnect(conn);
 }
 
 xcb_atom_t xcb_atom_get(char *name) {
@@ -99,66 +98,80 @@ void setupAtoms() {
 	atoms[_NET_CLIENT_LIST] = xcb_atom_get("_NET_CLIENT_LIST");
 }
 
+void setFocusColor(xcb_window_t window, uint32_t c) {
+	if (BORDER_WIDTH > 0 && screen->root != window && 0 != window) {
+		xcb_change_window_attributes(conn, window, XCB_CW_BORDER_PIXEL, (uint32_t[]) {c});
+	}
+}
+
 void handleEnterNotify(xcb_enter_notify_event_t *event) {
 	//when cursor enters window
-	DISREGARD(event);
+	xcb_drawable_t window = event->event;
+	if (window > 0 && window != screen->root) {
+		xcb_set_input_focus(conn, XCB_INPUT_FOCUS_POINTER_ROOT, window, XCB_CURRENT_TIME);
+		xcb_configure_window(
+			conn, window, XCB_CONFIG_WINDOW_STACK_MODE, (uint32_t[]) {
+				XCB_STACK_MODE_ABOVE
+			}
+		);
+		focused = getManaged(window);
+	}
 }
 
 void handleDestroyNotify(xcb_destroy_notify_event_t *event) {
 	//when a window is destroyed
+	if (focused->window == event->window) focused = NULL;
 	unmanage(event->window);
 }
 
 void handleMappingNotify(xcb_mapping_notify_event_t *event) {
 	//when keyboard mapping changes, i think
 	DISREGARD(event);
+	updateControls();
 }
 
 void handleUnmapNotify(xcb_unmap_notify_event_t *event) {
 	//when a program chooses to hide its own window
 	//desired behaviour is to act pretty much as if it was destroyed
+	if (focused->window == event->window) focused = NULL;
 	unmanage(event->window);
-}
-
-void handleButtonPress(xcb_button_press_event_t *event) {
-	//mouse press
-	DISREGARD(event);
-	spawn(termcmd);
-}
-
-void handleButtonRelease(xcb_button_release_event_t *event) {
-	//mouse release
-	DISREGARD(event);
-}
-
-void handleMotionNotify(xcb_motion_notify_event_t *event) {
-	//mouse movement
-	DISREGARD(event);
 }
 
 void handleKeyPress(xcb_key_press_event_t *event) {
 	//self explanatory
-	DISREGARD(event);
+	keybinding(event->state, event->detail);
 }
 
 void handleMapRequest(xcb_map_request_event_t *event) {
 	//happens when a new window wants to be shown
 	manage(event->window);
+	xcb_configure_window(
+		conn, event->window, XCB_CONFIG_WINDOW_BORDER_WIDTH, (uint32_t[]) {
+			BORDER_WIDTH
+		}
+	);
+	xcb_change_window_attributes_checked(
+		conn, event->window, XCB_CW_EVENT_MASK, (uint32_t[]) {
+			XCB_EVENT_MASK_ENTER_WINDOW | XCB_EVENT_MASK_FOCUS_CHANGE
+		}
+	);
+	setFocusColor(event->window, BORDER_COLOR_FOCUSED);
+	focused = getManaged(event->window);
 }
 
 
 void handleFocusIn(xcb_focus_in_event_t *event) {
 	//self explanatory
-	DISREGARD(event);
+	setFocusColor(event->event, BORDER_COLOR_FOCUSED);
 }
 
 void handleFocusOut(xcb_focus_out_event_t *event) {
 	//self explanatory
-	DISREGARD(event);
+	setFocusColor(event->event, BORDER_COLOR_UNFOCUSED);
 }
 
 int eventHandler(void) {
-	if (xcb_connection_has_error(conn)) return 0;
+	if (shouldCloseWM || xcb_connection_has_error(conn)) return 0;
 	
 	xcb_generic_event_t *ev = xcb_wait_for_event(conn);
 	do {
@@ -168,9 +181,6 @@ int eventHandler(void) {
 			case XCB_MAPPING_NOTIFY: handleMappingNotify((xcb_mapping_notify_event_t *) ev); break;
 			case XCB_UNMAP_NOTIFY: handleUnmapNotify((xcb_unmap_notify_event_t *) ev); break;
 			
-			case XCB_MOTION_NOTIFY: handleMotionNotify((xcb_motion_notify_event_t *) ev); break;
-			case XCB_BUTTON_PRESS: handleButtonPress((xcb_button_press_event_t *) ev); break;
-			case XCB_BUTTON_RELEASE: handleButtonRelease((xcb_button_release_event_t *) ev); break;
 			case XCB_KEY_PRESS: handleKeyPress((xcb_key_press_event_t *) ev); break;
 			
 			case XCB_MAP_REQUEST: handleMapRequest((xcb_map_request_event_t *) ev); break;

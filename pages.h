@@ -7,33 +7,29 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-
-struct Screen {
-	uint16_t width, height;
-	xcb_drawable_t root;
-};
-
 struct Page {
-	struct Screen *mapped;
+	bool mapped;
 	struct Column *columns;
 	uint16_t max, len;
 };
 
 struct Column {
-	struct Page *parent;
+	struct Page *page;
 	struct Row *rows;
 	uint16_t max, len;
 	uint16_t weight;
 };
 
 struct Row {
-	struct Column *parent;
+	struct Column *column;
 	xcb_drawable_t window;
 	uint16_t weight;
 };
 
-void screens_setup(xcb_connection_t *);
+void setupPages();
+void cleanupPages();
 void manage(xcb_drawable_t window);
 void unmanage(xcb_drawable_t window);
+struct Row *getManaged(xcb_drawable_t window);
 
 #endif
