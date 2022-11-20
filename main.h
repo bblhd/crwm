@@ -6,7 +6,9 @@
 
 #include <stdlib.h>
 #include <stdint.h>
-#include <stdbool.h>
+
+#define TRUE 1
+#define FALSE 0
 
 #define DISREGARD(x) ((void)(x))
 
@@ -18,7 +20,7 @@
 
 extern xcb_connection_t *conn;
 extern xcb_screen_t *screen;
-extern struct Row *focused;
+extern xcb_drawable_t focused;
 
 enum XcbAtomLabel {
 	UTF8_STRING,

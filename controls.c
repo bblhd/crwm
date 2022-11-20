@@ -1,4 +1,3 @@
-
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -46,10 +45,10 @@ struct Key *keys = (struct Key[]) {
 	{MOD1, 0x0071, killclient, {0}}, //0x0071 = XK_q
 	{MOD1|MOD2, 0x0071, closewm, {0}}, //0x0071 = XK_q
 	
-	//{MOD1, 0xff52, move, {.p=(void *) page_moveUp}}, //0xff52 = XK_Up
-	//{MOD1, 0xff54, move, {.p=(void *) page_moveDown}}, //0xff54 = XK_Down
-	//{MOD1, 0xff51, move, {.p=(void *) page_moveLeft}}, //0xff51 = XK_Left
-	//{MOD1, 0xff53, move, {.p=(void *) page_moveRight}}, //0xff53 = XK_Right
+	{MOD1|MOD2, 0xff52, move, {.u=1}}, //0xff52 = XK_Up
+	{MOD1|MOD2, 0xff53, move, {.u=2}}, //0xff53 = XK_Right
+	{MOD1|MOD2, 0xff54, move, {.u=3}}, //0xff54 = XK_Down
+	{MOD1|MOD2, 0xff51, move, {.u=4}}, //0xff51 = XK_Left
 	
 	//{MOD1, 0x0076, grow_vertical, {-1}}, //0xff52 = XK_v
 	//{MOD1|MOD2, 0x0076, grow_vertical, {1}}, //0xff54 = XK_v
@@ -122,19 +121,27 @@ void killclient(union Arg arg) {
 		
 		memset(&ev, 0, sizeof(ev));
 		ev.response_type = XCB_CLIENT_MESSAGE;
-		ev.window = focused->window;
+		ev.window = focused;
 		ev.format = 32;
 		ev.type = atoms[WM_PROTOCOLS];
 		ev.data.data32[0] = atoms[WM_DELETE_WINDOW];
 		ev.data.data32[1] = XCB_CURRENT_TIME;
 		
-		xcb_send_event(conn, 0, focused->window, XCB_EVENT_MASK_NO_EVENT, (char *) &ev);
+		xcb_send_event(conn, 0, focused, XCB_EVENT_MASK_NO_EVENT, (char *) &ev);
 	} else {
-		xcb_kill_client(conn, focused->window);
+		xcb_kill_client(conn, focused);
 	}
 }
 
 void closewm(union Arg arg) {
 	DISREGARD(arg);
 	closeWM();
+}
+
+void move(union Arg arg) {
+	if (!focused) return;
+	if (arg.i==1) moveUp(focused);
+	if (arg.i==2) moveRight(focused);
+	if (arg.i==3) moveDown(focused);
+	if (arg.i==4) moveLeft(focused);
 }

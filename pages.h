@@ -8,28 +8,35 @@
 #include <stdbool.h>
 
 struct Page {
-	bool mapped;
-	struct Column *columns;
-	uint16_t max, len;
+	struct Column {
+		uint16_t weight;
+		uint16_t length;
+	} *columns;
+	struct Row {
+		uint16_t weight;
+		xcb_drawable_t window;
+	} *rows;
+	uint16_t columnsLength, columnsMax;
+	uint16_t rowsLength, rowsMax;
 };
 
-struct Column {
-	struct Page *page;
-	struct Row *rows;
-	uint16_t max, len;
-	uint16_t weight;
-};
-
-struct Row {
-	struct Column *column;
-	xcb_drawable_t window;
-	uint16_t weight;
+struct ClientIndex {
+	uint16_t p;
+	uint16_t c;
+	uint16_t cr;
+	uint16_t r;
 };
 
 void setupPages();
 void cleanupPages();
-void manage(xcb_drawable_t window);
+
+bool managed(xcb_drawable_t window, struct ClientIndex *index);
+void manage(xcb_drawable_t window, struct ClientIndex *index);
 void unmanage(xcb_drawable_t window);
-struct Row *getManaged(xcb_drawable_t window);
+
+void moveUp(xcb_drawable_t window);
+void moveDown(xcb_drawable_t window);
+void moveLeft(xcb_drawable_t window);
+void moveRight(xcb_drawable_t window);
 
 #endif

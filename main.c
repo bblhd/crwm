@@ -1,4 +1,3 @@
-
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -13,7 +12,7 @@
 
 xcb_connection_t *conn;
 xcb_screen_t *screen;
-struct Row *focused;
+xcb_drawable_t focused;
 
 bool shouldCloseWM = 0;
 
@@ -114,13 +113,13 @@ void handleEnterNotify(xcb_enter_notify_event_t *event) {
 				XCB_STACK_MODE_ABOVE
 			}
 		);
-		focused = getManaged(window);
+		focused = window;
 	}
 }
 
 void handleDestroyNotify(xcb_destroy_notify_event_t *event) {
 	//when a window is destroyed
-	if (focused->window == event->window) focused = NULL;
+	if (focused && focused == event->window) focused = 0;
 	unmanage(event->window);
 }
 
@@ -133,7 +132,7 @@ void handleMappingNotify(xcb_mapping_notify_event_t *event) {
 void handleUnmapNotify(xcb_unmap_notify_event_t *event) {
 	//when a program chooses to hide its own window
 	//desired behaviour is to act pretty much as if it was destroyed
-	if (focused->window == event->window) focused = NULL;
+	if (focused && focused == event->window) focused = 0;
 	unmanage(event->window);
 }
 
@@ -144,7 +143,7 @@ void handleKeyPress(xcb_key_press_event_t *event) {
 
 void handleMapRequest(xcb_map_request_event_t *event) {
 	//happens when a new window wants to be shown
-	manage(event->window);
+	manage(event->window, NULL);
 	xcb_configure_window(
 		conn, event->window, XCB_CONFIG_WINDOW_BORDER_WIDTH, (uint32_t[]) {
 			BORDER_WIDTH
@@ -156,7 +155,7 @@ void handleMapRequest(xcb_map_request_event_t *event) {
 		}
 	);
 	setFocusColor(event->window, BORDER_COLOR_FOCUSED);
-	focused = getManaged(event->window);
+	if (!focused) focused = event->window;
 }
 
 

@@ -5,7 +5,6 @@
 #include <xcb/xcb_keysyms.h>
 
 #include <stdint.h>
-#include <stdbool.h>
 
 union Arg {
 	unsigned int u;
