@@ -81,23 +81,25 @@ xcb_atom_t xcb_atom_get(char *name) {
 }
 
 void setupAtoms() {
-	atoms[UTF8_STRING] = xcb_atom_get("UTF8_STRING");
+	//commented lines are unused atoms that may be useful later.
+	
+	//atoms[UTF8_STRING] = xcb_atom_get("UTF8_STRING");
 	atoms[WM_PROTOCOLS] = xcb_atom_get("WM_PROTOCOLS");
 	atoms[WM_DELETE_WINDOW] = xcb_atom_get("WM_DELETE_WINDOW");
-	atoms[WM_STATE] = xcb_atom_get("WM_STATE");
-	atoms[WM_TAKE_FOCUS] = xcb_atom_get("WM_TAKE_FOCUS");
-	atoms[_NET_ACTIVE_WINDOW] = xcb_atom_get("_NET_ACTIVE_WINDOW");
-	atoms[_NET_SUPPORTED] = xcb_atom_get("_NET_SUPPORTED");
-	atoms[_NET_WM_NAME] = xcb_atom_get("_NET_WM_NAME");
-	atoms[_NET_WM_STATE] = xcb_atom_get("_NET_WM_STATE");
-	atoms[_NET_SUPPORTING_WM_CHECK] = xcb_atom_get("_NET_SUPPORTING_WM_CHECK");
-	atoms[_NET_WM_STATE_FULLSCREEN] = xcb_atom_get("_NET_WM_STATE_FULLSCREEN");
-	atoms[_NET_WM_WINDOW_TYPE] = xcb_atom_get("_NET_WM_WINDOW_TYPE");
-	atoms[_NET_WM_WINDOW_TYPE_DIALOG] = xcb_atom_get("_NET_WM_WINDOW_TYPE_DIALOG");
-	atoms[_NET_CLIENT_LIST] = xcb_atom_get("_NET_CLIENT_LIST");
+	//atoms[WM_STATE] = xcb_atom_get("WM_STATE");
+	//atoms[WM_TAKE_FOCUS] = xcb_atom_get("WM_TAKE_FOCUS");
+	//atoms[_NET_ACTIVE_WINDOW] = xcb_atom_get("_NET_ACTIVE_WINDOW");
+	//atoms[_NET_SUPPORTED] = xcb_atom_get("_NET_SUPPORTED");
+	//atoms[_NET_WM_NAME] = xcb_atom_get("_NET_WM_NAME");
+	//atoms[_NET_WM_STATE] = xcb_atom_get("_NET_WM_STATE");
+	//atoms[_NET_SUPPORTING_WM_CHECK] = xcb_atom_get("_NET_SUPPORTING_WM_CHECK");
+	//atoms[_NET_WM_STATE_FULLSCREEN] = xcb_atom_get("_NET_WM_STATE_FULLSCREEN");
+	//atoms[_NET_WM_WINDOW_TYPE] = xcb_atom_get("_NET_WM_WINDOW_TYPE");
+	//atoms[_NET_WM_WINDOW_TYPE_DIALOG] = xcb_atom_get("_NET_WM_WINDOW_TYPE_DIALOG");
+	//atoms[_NET_CLIENT_LIST] = xcb_atom_get("_NET_CLIENT_LIST");
 }
 
-void setFocusColor(xcb_window_t window, uint32_t c) {
+void setBorderColor(xcb_window_t window, uint32_t c) {
 	if (BORDER_WIDTH > 0 && screen->root != window && 0 != window) {
 		xcb_change_window_attributes(conn, window, XCB_CW_BORDER_PIXEL, (uint32_t[]) {c});
 	}
@@ -143,7 +145,9 @@ void handleKeyPress(xcb_key_press_event_t *event) {
 
 void handleMapRequest(xcb_map_request_event_t *event) {
 	//happens when a new window wants to be shown
-	manage(event->window, NULL);
+	struct ClientIndex focusedIndex;
+	manage(event->window, managed(focused, &focusedIndex) ? &focusedIndex : NULL);
+	
 	xcb_configure_window(
 		conn, event->window, XCB_CONFIG_WINDOW_BORDER_WIDTH, (uint32_t[]) {
 			BORDER_WIDTH
@@ -154,19 +158,19 @@ void handleMapRequest(xcb_map_request_event_t *event) {
 			XCB_EVENT_MASK_ENTER_WINDOW | XCB_EVENT_MASK_FOCUS_CHANGE
 		}
 	);
-	setFocusColor(event->window, BORDER_COLOR_FOCUSED);
+	setBorderColor(event->window, BORDER_COLOR_UNFOCUSED);
 	if (!focused) focused = event->window;
 }
 
 
 void handleFocusIn(xcb_focus_in_event_t *event) {
 	//self explanatory
-	setFocusColor(event->event, BORDER_COLOR_FOCUSED);
+	setBorderColor(event->event, BORDER_COLOR_FOCUSED);
 }
 
 void handleFocusOut(xcb_focus_out_event_t *event) {
 	//self explanatory
-	setFocusColor(event->event, BORDER_COLOR_UNFOCUSED);
+	setBorderColor(event->event, BORDER_COLOR_UNFOCUSED);
 }
 
 int eventHandler(void) {
