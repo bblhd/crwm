@@ -10,6 +10,8 @@
 #include "main.h"
 #include "pages.h"
 
+//there is a lot of code duplication atm, need to fix
+
 #define PAGE_COUNT 9
 struct Page pages[PAGE_COUNT];
 int mapped;
@@ -23,12 +25,12 @@ void updateWidthForSingleRow(struct ClientIndex *row);
 void updateWidths(struct ClientIndex *page);
 void updateHeights(struct ClientIndex *column);
 
-bool checkPage(struct ClientIndex *index);
-bool checkColumn(struct ClientIndex *index);
-bool checkRow(struct ClientIndex *index);
-struct Row *getRow(struct ClientIndex *index);
-struct Column *getColumn(struct ClientIndex *index);
-struct Page *getPage(struct ClientIndex *index);
+static inline bool checkPage(struct ClientIndex *index);
+static inline bool checkColumn(struct ClientIndex *index);
+static inline bool checkRow(struct ClientIndex *index);
+static inline struct Row *getRow(struct ClientIndex *index);
+static inline struct Column *getColumn(struct ClientIndex *index);
+static inline struct Page *getPage(struct ClientIndex *index);
 
 void insertColumn(struct ClientIndex *index);
 void insertRow(struct ClientIndex *index);
@@ -36,7 +38,7 @@ void removeColumn(struct ClientIndex *index);
 void removeRow(struct ClientIndex *index);
 
 void setupPages() {
-	
+	//stub function in case it becomes needed later
 }
 
 void cleanupPages() {
@@ -141,7 +143,6 @@ void switchPage(uint16_t p) {
 	if (p == mapped) return;
 	for (int rr = 0; rr < pages[mapped].rowsLength; rr++) {
 		pages[mapped].rows[rr].dontUnmanageYet = TRUE;
-		xcb_unmap_window(conn, pages[mapped].rows[rr].window);
 		xcb_unmap_window(conn, pages[mapped].rows[rr].window);
 	}
 	mapped = p;
@@ -349,26 +350,26 @@ void removeRow(struct ClientIndex *index) {
 	getColumn(index)->length--;
 }
 
-bool checkPage(struct ClientIndex *index) {
+inline bool checkPage(struct ClientIndex *index) {
 	return index->p < PAGE_COUNT;
 }
 
-bool checkColumn(struct ClientIndex *index) {
+inline bool checkColumn(struct ClientIndex *index) {
 	return checkPage(index) && index->c < pages[index->p].columnsLength;
 }
-bool checkRow(struct ClientIndex *index) {
+inline bool checkRow(struct ClientIndex *index) {
 	return checkColumn(index) && index->r < pages[index->p].columns[index->c].length;
 }
 
-struct Row *getRow(struct ClientIndex *index) {
+inline struct Row *getRow(struct ClientIndex *index) {
 	return pages[index->p].rows+(index->cr + index->r);
 }
 
-struct Column *getColumn(struct ClientIndex *index) {
+inline struct Column *getColumn(struct ClientIndex *index) {
 	return pages[index->p].columns+(index->c);
 }
 
-struct Page *getPage(struct ClientIndex *index) {
+inline struct Page *getPage(struct ClientIndex *index) {
 	return pages+(index->p);
 }
 
@@ -438,6 +439,7 @@ void updateWidths(struct ClientIndex *index) {
 		if (clientIterMarkColumns(&i)) {
 			cx += w;
 			w = (uint16_t) ((float) screen->width_in_pixels * getColumn(&i)->weight / totalWeight);
+			if (i.c == getPage(index)->columnsLength-1) w = screen->width_in_pixels - cx;
 		}
 	}
 }
@@ -456,6 +458,7 @@ void updateHeights(struct ClientIndex *index) {
 	uint16_t ry = 0;
 	while (checkRow(&i)) {
 		uint16_t h = (uint16_t) ((float) screen->height_in_pixels * getRow(&i)->weight / totalWeight);
+		if (i.r == getColumn(&i)->length-1) h = screen->height_in_pixels - ry;
 		
 		xcb_configure_window(conn, getRow(&i)->window, XCB_CONFIG_WINDOW_Y | XCB_CONFIG_WINDOW_HEIGHT, (uint32_t[]) {
 			ry, h-BORDER_WIDTH*2

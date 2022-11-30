@@ -196,4 +196,5 @@ void send(union Arg arg) {
 void flip(union Arg arg) {
 	if (focused) focused = 0;
 	switchPage(arg.u);
+	focused = 0;
 }

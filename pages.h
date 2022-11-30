@@ -31,13 +31,6 @@ struct ClientIndex {
 void setupPages();
 void cleanupPages();
 
-bool checkPage(struct ClientIndex *index);
-bool checkColumn(struct ClientIndex *index);
-bool checkRow(struct ClientIndex *index);
-struct Row *getRow(struct ClientIndex *index);
-struct Column *getColumn(struct ClientIndex *index);
-struct Page *getPage(struct ClientIndex *index);
-
 bool managed(xcb_drawable_t window, struct ClientIndex *index);
 void manage(xcb_drawable_t window, struct ClientIndex *index);
 void unmanage(xcb_drawable_t window);
