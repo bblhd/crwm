@@ -48,7 +48,7 @@ void cleanupPages() {
 	}
 }
 
-bool managed(xcb_drawable_t window, struct ClientIndex *index) {
+bool managed(xcb_window_t window, struct ClientIndex *index) {
 	struct ClientIndex _index;
 	if (index == NULL) index = &_index;
 	
@@ -62,7 +62,7 @@ bool managed(xcb_drawable_t window, struct ClientIndex *index) {
 	return FALSE;
 }
 
-void manage(xcb_drawable_t window, struct ClientIndex *index) {
+void manage(xcb_window_t window, struct ClientIndex *index) {
 	struct ClientIndex _index;
 	if (index == NULL) index = &_index;
 	if (index->p != mapped) *index = (struct ClientIndex) {mapped, 0, 0, 0};
@@ -82,7 +82,7 @@ void manage(xcb_drawable_t window, struct ClientIndex *index) {
 	}
 }
 
-void unmanage(xcb_drawable_t window) {
+void unmanage(xcb_window_t window) {
 	struct ClientIndex client;
 	if (managed(window, &client)) {
 		if (getRow(&client)->dontUnmanageYet) {
@@ -103,7 +103,7 @@ void unmanage(xcb_drawable_t window) {
 	}
 }
 
-void sendPage(xcb_drawable_t window, uint16_t p) {
+void sendPage(xcb_window_t window, uint16_t p) {
 	if (p >= PAGE_COUNT) return;
 	struct ClientIndex client;
 	if (managed(window, &client)) {
@@ -151,7 +151,7 @@ void switchPage(uint16_t p) {
 	}
 }
 
-void changeWeights(xcb_drawable_t window, int16_t x, int16_t y) {
+void changeWeights(xcb_window_t window, int16_t x, int16_t y) {
 	struct ClientIndex client;
 	if (managed(window, &client)) {
 		if (x != 0) {
@@ -167,7 +167,7 @@ void changeWeights(xcb_drawable_t window, int16_t x, int16_t y) {
 	}
 }
 
-xcb_drawable_t lookUp(xcb_drawable_t window) {
+xcb_window_t lookUp(xcb_window_t window) {
 	struct ClientIndex client;
 	if (managed(window, &client)) {
 		client.r--;
@@ -176,7 +176,7 @@ xcb_drawable_t lookUp(xcb_drawable_t window) {
 	return window;
 }
 
-xcb_drawable_t lookDown(xcb_drawable_t window) {
+xcb_window_t lookDown(xcb_window_t window) {
 	struct ClientIndex client;
 	if (managed(window, &client)) {
 		client.r++;
@@ -185,7 +185,7 @@ xcb_drawable_t lookDown(xcb_drawable_t window) {
 	return window;
 }
 
-xcb_drawable_t lookRight(xcb_drawable_t window) {
+xcb_window_t lookRight(xcb_window_t window) {
 	struct ClientIndex client;
 	if (managed(window, &client)) {
 		incrementClientIndexColumn(&client);
@@ -194,7 +194,7 @@ xcb_drawable_t lookRight(xcb_drawable_t window) {
 	return window;
 }
 
-xcb_drawable_t lookLeft(xcb_drawable_t window) {
+xcb_window_t lookLeft(xcb_window_t window) {
 	struct ClientIndex client;
 	if (managed(window, &client)) {
 		decrementClientIndexColumn(&client);
@@ -203,7 +203,7 @@ xcb_drawable_t lookLeft(xcb_drawable_t window) {
 	return window;
 }
 
-void moveUp(xcb_drawable_t window) {
+void moveUp(xcb_window_t window) {
 	struct ClientIndex client;
 	if (managed(window, &client)) {
 		if (client.r != 0) {
@@ -213,7 +213,7 @@ void moveUp(xcb_drawable_t window) {
 	}
 }
 
-void moveDown(xcb_drawable_t window) {
+void moveDown(xcb_window_t window) {
 	struct ClientIndex client;
 	if (managed(window, &client)) {
 		if (client.r != getColumn(&client)->length-1) {
@@ -222,7 +222,7 @@ void moveDown(xcb_drawable_t window) {
 	}
 }
 
-void moveLeft(xcb_drawable_t window) {
+void moveLeft(xcb_window_t window) {
 	struct ClientIndex client;
 	if (managed(window, &client)) {
 		bool isLeftSide = (client.c == 0);
@@ -250,10 +250,9 @@ void moveLeft(xcb_drawable_t window) {
 		if (isLeftSide || isOnlyChild) updateWidths(&client);
 		else updateWidthForSingleRow(&client);
 	}
-	xcb_flush(conn); //makes some windows not stop responding for some reason
 }
 
-void moveRight(xcb_drawable_t window) {
+void moveRight(xcb_window_t window) {
 	struct ClientIndex client;
 	if (managed(window, &client)) {
 		bool isRightSide = (client.c == pages[client.p].columnsLength-1);
@@ -281,7 +280,6 @@ void moveRight(xcb_drawable_t window) {
 		if (isRightSide || isOnlyChild) updateWidths(&client);
 		else updateWidthForSingleRow(&client);
 	}
-	xcb_flush(conn); //makes some windows not stop responding for some reason
 }
 
 void insertColumn(struct ClientIndex *index) {
@@ -417,6 +415,7 @@ void updateWidthForSingleRow(struct ClientIndex *index) {
 			cx, w-BORDER_WIDTH*2
 		});
 	}
+	xcb_flush(conn);
 }
 
 void updateWidths(struct ClientIndex *index) {
@@ -442,6 +441,7 @@ void updateWidths(struct ClientIndex *index) {
 			if (i.c == getPage(index)->columnsLength-1) w = screen->width_in_pixels - cx;
 		}
 	}
+	xcb_flush(conn);
 }
 
 void updateHeights(struct ClientIndex *index) {
@@ -468,6 +468,7 @@ void updateHeights(struct ClientIndex *index) {
 		
 		if (clientIterMarkColumns(&i)) break;
 	}
+	xcb_flush(conn);
 }
 
 void decrementClientIndexColumn(struct ClientIndex *index) {

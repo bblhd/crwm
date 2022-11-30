@@ -147,7 +147,7 @@ void closewm(union Arg arg) {
 	closeWM();
 }
 
-void warpMouseToCenter(xcb_drawable_t window) {
+void warpMouseToCenter(xcb_window_t window) {
 	uint16_t x, y;
 	
 	xcb_get_geometry_reply_t *geom = xcb_get_geometry_reply(conn, xcb_get_geometry(conn, window), NULL);

@@ -12,7 +12,7 @@
 
 xcb_connection_t *conn;
 xcb_screen_t *screen;
-xcb_drawable_t focused;
+xcb_window_t focused;
 
 bool shouldCloseWM = 0;
 
@@ -99,15 +99,7 @@ void setupAtoms() {
 	//atoms[_NET_CLIENT_LIST] = xcb_atom_get("_NET_CLIENT_LIST");
 }
 
-void setBorderColor(xcb_window_t window, uint32_t c) {
-	if (BORDER_WIDTH > 0 && screen->root != window && 0 != window) {
-		xcb_change_window_attributes(conn, window, XCB_CW_BORDER_PIXEL, (uint32_t[]) {c});
-	}
-}
-
-void handleEnterNotify(xcb_enter_notify_event_t *event) {
-	//when cursor enters window
-	xcb_drawable_t window = event->event;
+void focus(xcb_window_t window) {
 	if (window > 0 && window != screen->root) {
 		xcb_set_input_focus(conn, XCB_INPUT_FOCUS_POINTER_ROOT, window, XCB_CURRENT_TIME);
 		xcb_configure_window(
@@ -117,6 +109,34 @@ void handleEnterNotify(xcb_enter_notify_event_t *event) {
 		);
 		focused = window;
 	}
+}
+
+void setBorderColor(xcb_window_t window, uint32_t c) {
+	if (BORDER_WIDTH > 0 && screen->root != window && 0 != window) {
+		xcb_change_window_attributes(conn, window, XCB_CW_BORDER_PIXEL, (uint32_t[]) {c});
+	}
+}
+
+bool isMouseWithin(xcb_window_t window) {
+	uint16_t x, y;
+	uint16_t w, h;
+	
+	xcb_query_pointer_reply_t *pointer = xcb_query_pointer_reply(conn, xcb_query_pointer(conn, window), NULL);
+	x = pointer->win_x;
+	y = pointer->win_y;
+	free(pointer);
+	
+	xcb_get_geometry_reply_t *geom = xcb_get_geometry_reply(conn, xcb_get_geometry(conn, window), NULL);
+	w = geom->width;
+	h = geom->height;
+	free(geom);
+	
+	return x>0 && x<w && y>0 && y<h;
+}
+
+void handleEnterNotify(xcb_enter_notify_event_t *event) {
+	//when cursor enters window
+	focus(event->event);
 }
 
 void handleDestroyNotify(xcb_destroy_notify_event_t *event) {
@@ -159,7 +179,7 @@ void handleMapRequest(xcb_map_request_event_t *event) {
 		}
 	);
 	setBorderColor(event->window, BORDER_COLOR_UNFOCUSED);
-	if (!focused) focused = event->window;
+	if (isMouseWithin(event->window)) focus(event->window);
 }
 
 
