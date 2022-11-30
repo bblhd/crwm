@@ -34,3 +34,4 @@ To uninstall just remove the executable from wherever it was installed (eg: `rm 
 
 - I used the [xwm](https://github.com/mcpcpc/xwm) by [Michael Czigler](https://github.com/mcpcpc) as a reference which was incredibly helpful due to the lack of documention on xcb
 - Thanks to [Ivan Tikhonov](https://github.com/ITikhonov) for their [program that closes windows with xcb](https://github.com/ITikhonov/wm/blob/master/wmclose.c), of which the code to do so is based off
+- Thanks to [suckless.org]() for having a fully featured wm which works at least better than mine

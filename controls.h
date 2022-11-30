@@ -1,5 +1,10 @@
-#ifndef CONTROLS_H
-#define CONTROLS_H
+#ifndef CRWM_CONTROLS_H
+#define CRWM_CONTROLS_H
+
+#include <xcb/xcb.h>
+#include <xcb/xcb_keysyms.h>
+
+#include <stdint.h>
 
 union Arg {
 	unsigned int u;
@@ -16,11 +21,9 @@ struct Key {
 	union Arg arg;
 };
 
-extern struct Key *keys;
-
-extern struct Page *mappedPage;
-
-void pages_init();
-void pages_fini();
+void setupControls();
+void updateControls();
+void cleanupControls();
+void keybinding(uint16_t mod, xcb_keycode_t keycode);
 
 #endif

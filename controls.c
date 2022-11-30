@@ -1,28 +1,46 @@
-
 #include <stdlib.h>
+#include <stdint.h>
+#include <stdbool.h>
 #include <string.h>
-#include <sys/wait.h>
 #include <unistd.h>
+#include <sys/wait.h>
+
+#include <xcb/xcb.h>
+#include <xcb/xproto.h>
+#include <xcb/xcb_keysyms.h>
 
 #include "main.h"
+#include "pages.h"
 #include "controls.h"
-#include "page.h"
 
 char *termcmd[] = { "st", NULL };
 char *menucmd[] = { "dmenu_run", NULL };
 
-#define PAGEKEY(keysym, n)\
-	{MOD1, keysym, pages_switch, {.u=n}},\
-	{MOD1|MOD2, keysym, pages_send, {.u=n}}
+xcb_key_symbols_t *keySymbols;
+
+xcb_keycode_t *xcb_get_keycodes(xcb_keysym_t keysym) {
+	return keySymbols ? xcb_key_symbols_get_keycode(keySymbols, keysym) : NULL;
+}
+
+xcb_keysym_t xcb_get_keysym(xcb_keycode_t keycode) {
+	return keySymbols ? xcb_key_symbols_get_keysym(keySymbols, keycode, 0) : 0;
+}
 
 void pages_switch(union Arg arg);
 void pages_send(union Arg arg);
 void spawn(union Arg arg);
 void killclient(union Arg arg);
 void closewm(union Arg arg);
+void look(union Arg arg);
 void move(union Arg arg);
-void grow_vertical(union Arg arg);
-void grow_horizontal(union Arg arg);
+void horizontalWeight(union Arg arg);
+void verticalWeight(union Arg arg);
+void flip(union Arg arg);
+void send(union Arg arg);
+
+#define PAGEKEY(keysym, n)\
+	{MOD1, keysym, flip, {.u=n}},\
+	{MOD1|MOD2, keysym, send, {.u=n}}
 
 struct Key *keys = (struct Key[]) {
 	{MOD1, 0xff0d, spawn, {.c=termcmd}}, //0xff0d = XK_Enter
@@ -30,15 +48,21 @@ struct Key *keys = (struct Key[]) {
 	{MOD1, 0x0071, killclient, {0}}, //0x0071 = XK_q
 	{MOD1|MOD2, 0x0071, closewm, {0}}, //0x0071 = XK_q
 	
-	{MOD1, 0xff52, move, {.p=(void *) page_moveUp}}, //0xff52 = XK_Up
-	{MOD1, 0xff54, move, {.p=(void *) page_moveDown}}, //0xff54 = XK_Down
-	{MOD1, 0xff51, move, {.p=(void *) page_moveLeft}}, //0xff51 = XK_Left
-	{MOD1, 0xff53, move, {.p=(void *) page_moveRight}}, //0xff53 = XK_Right
+	{MOD1, 0xff51, look, {.u=1}}, //0xff51 = XK_Left
+	{MOD1, 0xff52, look, {.u=2}}, //0xff52 = XK_Up
+	{MOD1, 0xff53, look, {.u=3}}, //0xff53 = XK_Right
+	{MOD1, 0xff54, look, {.u=4}}, //0xff54 = XK_Down
 	
-	{MOD1, 0x0076, grow_vertical, {-1}}, //0xff52 = XK_v
-	{MOD1|MOD2, 0x0076, grow_vertical, {1}}, //0xff54 = XK_v
-	{MOD1, 0x0063, grow_horizontal, {-1}}, //0xff51 = XK_c
-	{MOD1|MOD2, 0x0063, grow_horizontal, {1}}, //0xff53 = XK_c
+	{MOD1|MOD2, 0xff51, move, {.u=1}}, //0xff51 = XK_Left
+	{MOD1|MOD2, 0xff52, move, {.u=2}}, //0xff52 = XK_Up
+	{MOD1|MOD2, 0xff53, move, {.u=3}}, //0xff53 = XK_Right
+	{MOD1|MOD2, 0xff54, move, {.u=4}}, //0xff54 = XK_Down
+	
+	{MOD1, 0x0063, horizontalWeight, {.i=-1}}, //0x0063 = XK_c
+	{MOD1, 0x0076, verticalWeight, {.i=-1}}, //0x0076 = XK_v
+	
+	{MOD1|MOD2, 0x0063, horizontalWeight, {.i=1}}, //0x0063 = XK_c
+	{MOD1|MOD2, 0x0076, verticalWeight, {.i=1}}, //0x0076 = XK_v
 	
 	PAGEKEY(0x0031, 0), //0x0031 = XK_1
 	PAGEKEY(0x0032, 1), //0x0032 = XK_2
@@ -54,34 +78,38 @@ struct Key *keys = (struct Key[]) {
 };
 
 
-struct Page *mappedPage = NULL;
-struct Page pages[9];
-
-void pages_init() {
-	for (int i = 0; i < 9; i++) {
-		page_init(&(pages[i]));
+void setupControls() {
+	xcb_ungrab_key(conn, XCB_GRAB_ANY, screen->root, XCB_MOD_MASK_ANY);
+	
+	keySymbols = xcb_key_symbols_alloc(conn);
+	for (int i = 0; keys[i].func != NULL; i++) {
+		xcb_keycode_t *keycode = xcb_get_keycodes(keys[i].keysym);
+		if (keycode != NULL) {
+			xcb_grab_key(
+				conn, 1, screen->root,
+				keys[i].mod, *keycode,
+				XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC
+			);
+		}
 	}
-	mappedPage = &(pages[0]);
+}
+void updateControls() {
+	if (keySymbols) xcb_key_symbols_free(keySymbols);
+	setupControls();
 }
 
-void pages_fini() {
-	for (int i = 0; i < 9; i++) {
-		page_free(&(pages[i]));
+void cleanupControls() {
+	if (keySymbols) xcb_key_symbols_free(keySymbols);
+	xcb_ungrab_key(conn, XCB_GRAB_ANY, screen->root, XCB_MOD_MASK_ANY);
+}
+
+void keybinding(uint16_t mod, xcb_keycode_t keycode) {
+	xcb_keysym_t keysym = xcb_get_keysym(keycode);
+	for (int i = 0; keys[i].func != NULL; i++) {
+		if (mod == keys[i].mod && keysym == keys[i].keysym) {
+			keys[i].func(keys[i].arg);
+		}
 	}
-}
-
-void pages_switch(union Arg arg) {
-	if (mappedPage == &pages[arg.u]) return;
-	page_unmap(mappedPage);
-	mappedPage = &pages[arg.u];
-	page_map(mappedPage);
-}
-
-void pages_send(union Arg arg) {
-	if (mappedPage == &pages[arg.u]) return;
-	page_remove(mappedPage, focusedWindow);
-	xcb_unmap_window(conn, focusedWindow);
-	page_insertThrow(&pages[arg.u], focusedWindow);
 }
 
 void spawn(union Arg arg) {
@@ -94,46 +122,79 @@ void spawn(union Arg arg) {
 	wait(NULL);
 }
 
-xcb_atom_t xcb_atom_get(char *name) {
-	xcb_intern_atom_reply_t *reply = xcb_intern_atom_reply(conn, xcb_intern_atom(conn,0,strlen(name),name), NULL);
-	xcb_atom_t atom = reply ? reply->atom : XCB_NONE;
-	free(reply);
-	return atom;
-}
-
 void killclient(union Arg arg) {
 	DISREGARD(arg);
-	xcb_client_message_event_t ev;
-	
-	//todo: get atoms in setup and store permanantly
-	memset(&ev, 0, sizeof(ev));
-	ev.response_type = XCB_CLIENT_MESSAGE;
-	ev.window = focusedWindow;
-	ev.format = 32;
-	ev.data.data32[1] = XCB_CURRENT_TIME;
-	ev.type = xcb_atom_get("WM_PROTOCOLS");
-	ev.data.data32[0] = xcb_atom_get("WM_DELETE_WINDOW");
-	
-	xcb_send_event(conn, 0, focusedWindow, XCB_EVENT_MASK_NO_EVENT, (char *) &ev);
+	if (!focused) return;
+	if (atoms[WM_PROTOCOLS] && atoms[WM_DELETE_WINDOW]) {
+		xcb_client_message_event_t ev;
+		
+		memset(&ev, 0, sizeof(ev));
+		ev.response_type = XCB_CLIENT_MESSAGE;
+		ev.window = focused;
+		ev.format = 32;
+		ev.type = atoms[WM_PROTOCOLS];
+		ev.data.data32[0] = atoms[WM_DELETE_WINDOW];
+		ev.data.data32[1] = XCB_CURRENT_TIME;
+		
+		xcb_send_event(conn, 0, focused, XCB_EVENT_MASK_NO_EVENT, (char *) &ev);
+	} else {
+		xcb_kill_client(conn, focused);
+	}
 }
 
 void closewm(union Arg arg) {
 	DISREGARD(arg);
-	if (conn != NULL) xcb_disconnect(conn);
+	closeWM();
+}
+
+void warpMouseToCenter(xcb_drawable_t window) {
+	uint16_t x, y;
+	
+	xcb_get_geometry_reply_t *geom = xcb_get_geometry_reply(conn, xcb_get_geometry(conn, window), NULL);
+	x = geom->width >> 1;
+	y = geom->height >> 1;
+	free(geom);
+	xcb_warp_pointer(conn, XCB_NONE, window, 0,0,0,0, x,y);
+}
+
+void look(union Arg arg) {
+	if (!focused) return;
+	switch(arg.u) {
+		case 1: focused = lookLeft(focused); break;
+		case 2: focused = lookUp(focused); break;
+		case 3: focused = lookRight(focused); break;
+		case 4: focused = lookDown(focused); break;
+	}
+	warpMouseToCenter(focused);
 }
 
 void move(union Arg arg) {
-	void (*movefunc)(struct Page *, xcb_drawable_t) = ((void (*)(struct Page *, xcb_drawable_t)) (arg.p));
-	movefunc(mappedPage, focusedWindow);
-	warpMouseToCenter(focusedWindow);
+	if (!focused) return;
+	switch(arg.u) {
+		case 1: moveLeft(focused); break;
+		case 2: moveUp(focused); break;
+		case 3: moveRight(focused); break;
+		case 4: moveDown(focused); break;
+	}
 }
 
-void grow_vertical(union Arg arg) {
-	page_changeRowWeight(mappedPage, focusedWindow, arg.i);
-	warpMouseToCenter(focusedWindow);
+void horizontalWeight(union Arg arg) {
+	if (!focused) return;
+	changeWeights(focused, arg.i, 0);
 }
 
-void grow_horizontal(union Arg arg) {
-	page_changeColumnWeight(mappedPage, focusedWindow, arg.i);
-	warpMouseToCenter(focusedWindow);
+void verticalWeight(union Arg arg) {
+	if (!focused) return;
+	changeWeights(focused, 0, arg.i);
+}
+
+void send(union Arg arg) {
+	if (!focused) return;
+	sendPage(focused, arg.u);
+}
+
+void flip(union Arg arg) {
+	if (focused) focused = 0;
+	switchPage(arg.u);
+	focused = 0;
 }
