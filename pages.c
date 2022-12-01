@@ -38,7 +38,14 @@ void removeColumn(struct ClientIndex *index);
 void removeRow(struct ClientIndex *index);
 
 void setupPages() {
-	//stub function in case it becomes needed later
+	for (int p = 0; p < PAGE_COUNT; p++) {
+		pages[p] = (struct Page) {
+			.columns=malloc(sizeof(struct Column)),
+			.columnsMax=1, .columnsLength=0,
+			.rows=malloc(sizeof(struct Row)),
+			.rowsMax=1, .rowsLength=0
+		};
+	}
 }
 
 void cleanupPages() {
@@ -289,6 +296,10 @@ void insertColumn(struct ClientIndex *index) {
 	if (getPage(index)->columnsLength > getPage(index)->columnsMax) {
 		getPage(index)->columnsMax *= 2;
 		getPage(index)->columns = realloc(getPage(index)->columns, getPage(index)->columnsMax * sizeof(struct Column));
+		if (getPage(index)->columns == NULL) {
+			printf("AHHAHAHAHH! %u\n", getPage(index)->columnsMax);
+			exit(1);
+		}
 	}
 	
 	for (int c = getPage(index)->columnsLength - 2; c >= index->c; c--) {
