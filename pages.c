@@ -296,10 +296,6 @@ void insertColumn(struct ClientIndex *index) {
 	if (getPage(index)->columnsLength > getPage(index)->columnsMax) {
 		getPage(index)->columnsMax *= 2;
 		getPage(index)->columns = realloc(getPage(index)->columns, getPage(index)->columnsMax * sizeof(struct Column));
-		if (getPage(index)->columns == NULL) {
-			printf("AHHAHAHAHH! %u\n", getPage(index)->columnsMax);
-			exit(1);
-		}
 	}
 	
 	for (int c = getPage(index)->columnsLength - 2; c >= index->c; c--) {
