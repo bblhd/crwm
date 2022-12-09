@@ -1,4 +1,4 @@
-# ![Crwm](https://user-images.githubusercontent.com/20104594/206655715-e9bb4c1d-16bd-46d0-935b-863a32f4071a.svg)
+# ![crwm_logo](https://user-images.githubusercontent.com/20104594/206676265-f699dbf5-7252-4c0f-9e55-e815089ea7b9.svg)
 
 Crwm (Column Row Window Manager, pronounced crumb) is a manual tiling window manager for X somewhat inspired by plan9's acme text editor, as well as a variety of window managers such as bspwm, i3wm, rio, dwm, and others.
 
