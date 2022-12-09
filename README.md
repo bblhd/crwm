@@ -16,7 +16,8 @@ The default keybindings for crwm are pretty simple. Default modifier key is meta
 | `mod + shift + q` | quits window manager
 | `mod + d` | opens launcher (default: `dmenu_run`)
 | `mod + enter` | opens terminal (default: `st`)
-| `mod + [up,down,left,right]` | moves focused window [up,down,left,right]
+| `mod + [up,down,left,right]` | moves focus [up,down,left,right]
+| `mod + shift + [up,down,left,right]` | moves focused window [up,down,left,right]
 | `mod + [1-9]` | moves to page [1-9]
 | `mod + shift + [1-9]` | moves focused window to page [1-9]
 | `mod + [c,v]` | shrinks focused window [horizontally,vertically]
