@@ -1,4 +1,4 @@
-# crwm
+# ![Crwm](https://user-images.githubusercontent.com/20104594/206655715-e9bb4c1d-16bd-46d0-935b-863a32f4071a.svg)
 
 Crwm (Column Row Window Manager, pronounced crumb) is a manual tiling window manager for X somewhat inspired by plan9's acme text editor, as well as a variety of window managers such as bspwm, i3wm, rio, dwm, and others.
 
@@ -34,4 +34,5 @@ To uninstall just remove the executable from wherever it was installed (eg: `rm 
 
 - I used the [xwm](https://github.com/mcpcpc/xwm) by [Michael Czigler](https://github.com/mcpcpc) as a reference which was incredibly helpful due to the lack of documention on xcb
 - Thanks to [Ivan Tikhonov](https://github.com/ITikhonov) for their [program that closes windows with xcb](https://github.com/ITikhonov/wm/blob/master/wmclose.c), of which the code to do so is based off
-- Thanks to [suckless.org]() for having a fully featured wm which works at least better than mine
+- Thanks to [suckless.org](suckless.org) for having a fully featured wm which works at least better than mine
+- Logo made using [dotgrid](https://100r.co/site/dotgrid.html) made by [Hundred Rabbits](https://100r.co) aka Rek & Devine
