@@ -15,6 +15,7 @@
 #define MOD1 XCB_MOD_MASK_4
 #define MOD2 XCB_MOD_MASK_SHIFT
 #define BORDER_WIDTH 1
+#define MARGIN_WIDTH 8
 #define BORDER_COLOR_UNFOCUSED 0x9eeeee /* 0xRRGGBB */
 #define BORDER_COLOR_FOCUSED   0x55aaaa /* 0xRRGGBB */
 
