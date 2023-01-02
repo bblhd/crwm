@@ -4,6 +4,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <fcntl.h>
 
 #include <xcb/xcb.h>
 #include <xcb/xproto.h>
@@ -116,6 +117,13 @@ void spawn(union Arg arg) {
 	if (fork() == 0) {
 		setsid();
 		if (fork() != 0) _exit(0);
+		
+		int null = open("/dev/null", O_RDWR);
+	    dup2(null, STDIN_FILENO);
+	    dup2(null, STDOUT_FILENO);
+	    dup2(null, STDERR_FILENO);
+	    close(null);
+	    
 		execvp(arg.c[0], arg.c);
 		_exit(0);
 	}

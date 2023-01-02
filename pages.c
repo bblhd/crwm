@@ -391,7 +391,7 @@ void swapRowWithAdjacent(struct ClientIndex *index) {
 	bh = geom->height;
 	free(geom);
 	
-	xcb_configure_window(conn, row[0].window, XCB_CONFIG_WINDOW_Y, (uint32_t[]) {ay + bh + 2*BORDER_WIDTH + MARGIN_WIDTH});
+	xcb_configure_window(conn, row[0].window, XCB_CONFIG_WINDOW_Y, (uint32_t[]) {ay + bh + 2*BORDER_WIDTH + PADDING_WIDTH});
 	xcb_configure_window(conn, row[1].window, XCB_CONFIG_WINDOW_Y, (uint32_t[]) {ay});
 	
 	struct Row _temp = row[0];
@@ -399,8 +399,8 @@ void swapRowWithAdjacent(struct ClientIndex *index) {
 	row[1] = _temp;
 }
 
-#define WIDTH_CALC(p) ((uint16_t)((float)(screen->width_in_pixels-MARGIN_WIDTH) * p - MARGIN_WIDTH))
-#define HEIGHT_CALC(p) ((uint16_t)((float)(screen->height_in_pixels-MARGIN_WIDTH) * p - MARGIN_WIDTH))
+#define WIDTH_CALC(p) ((uint16_t)((float)(screen->width_in_pixels-PADDING_WIDTH) * p - PADDING_WIDTH))
+#define HEIGHT_CALC(p, n) ((uint16_t)((float)(screen->height_in_pixels-MARGIN_TOP-MARGIN_BOTTOM-(doDrawBar ? BAR_SIZE : 0) - PADDING_WIDTH * (n)) * p))
 
 void updateWidthForSingleRow(struct ClientIndex *index) {
 	if (!checkRow(index)) return;
@@ -413,12 +413,12 @@ void updateWidthForSingleRow(struct ClientIndex *index) {
 	}
 	
 	struct ClientIndex i = {.p=index->p, .c=0, .cr=0, .r=0};
-	uint16_t cx = MARGIN_WIDTH, w = WIDTH_CALC(getColumn(&i)->weight / totalWeight);
+	uint16_t cx = PADDING_WIDTH, w = WIDTH_CALC(getColumn(&i)->weight / totalWeight);
 	while (checkRow(&i) && (i.c != index->c || i.r != index->r)) {
 		if (clientIterMarkColumns(&i)) {
-			cx += w + MARGIN_WIDTH;
+			cx += w + PADDING_WIDTH;
 			w = WIDTH_CALC(getColumn(&i)->weight / totalWeight);
-			if (i.c == getPage(index)->columnsLength-1) w = screen->width_in_pixels - MARGIN_WIDTH - cx;
+			if (i.c == getPage(index)->columnsLength-1) w = screen->width_in_pixels - PADDING_WIDTH - cx;
 		}
 	}
 	if (checkRow(&i)) {
@@ -440,7 +440,7 @@ void updateWidths(struct ClientIndex *index) {
 	}
 	
 	struct ClientIndex i = {.p=index->p, .c=0, .cr=0, .r=0};
-	uint16_t cx = MARGIN_WIDTH, w = WIDTH_CALC(getColumn(&i)->weight / totalWeight);
+	uint16_t cx = PADDING_WIDTH, w = WIDTH_CALC(getColumn(&i)->weight / totalWeight);
 	while (checkRow(&i)) {
 		xcb_configure_window(conn, getRow(&i)->window, XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_WIDTH, (uint32_t[]) {
 			cx, w - 2*BORDER_WIDTH
@@ -448,9 +448,9 @@ void updateWidths(struct ClientIndex *index) {
 		});
 		
 		if (clientIterMarkColumns(&i)) {
-			cx += w + MARGIN_WIDTH;
+			cx += w + PADDING_WIDTH;
 			w = WIDTH_CALC(getColumn(&i)->weight / totalWeight);
-			if (i.c == getPage(index)->columnsLength-1) w = screen->width_in_pixels - MARGIN_WIDTH - cx;
+			if (i.c == getPage(index)->columnsLength-1) w = screen->width_in_pixels - PADDING_WIDTH - cx;
 
 		}
 	}
@@ -468,16 +468,16 @@ void updateHeights(struct ClientIndex *index) {
 	}
 	
 	struct ClientIndex i = {.p=index->p, .c=index->c, .cr=index->cr, .r=0};
-	uint16_t ry = MARGIN_WIDTH;
+	uint16_t ry = MARGIN_TOP + (DRAW_BAR==0 && doDrawBar ? BAR_SIZE : 0);
 	while (checkRow(&i)) {
-		uint16_t h = HEIGHT_CALC(getRow(&i)->weight / totalWeight);
-		if (i.r == getColumn(&i)->length-1) h = screen->height_in_pixels - MARGIN_WIDTH - ry;
+		uint16_t h = HEIGHT_CALC(getRow(&i)->weight / totalWeight, getColumn(&i)->length-1);
+		if (i.r == getColumn(&i)->length-1) h = screen->height_in_pixels - MARGIN_BOTTOM - (doDrawBar ? BAR_SIZE : 0) - ry;
 		
 		xcb_configure_window(conn, getRow(&i)->window, XCB_CONFIG_WINDOW_Y | XCB_CONFIG_WINDOW_HEIGHT, (uint32_t[]) {
 			ry, h - 2*BORDER_WIDTH
 		});
 		
-		ry += h + MARGIN_WIDTH;
+		ry += h + PADDING_WIDTH;
 		
 		if (clientIterMarkColumns(&i)) break;
 	}

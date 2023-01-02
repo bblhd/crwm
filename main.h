@@ -14,8 +14,16 @@
 
 #define MOD1 XCB_MOD_MASK_4
 #define MOD2 XCB_MOD_MASK_SHIFT
+
 #define BORDER_WIDTH 1
-#define MARGIN_WIDTH 0
+
+#define PADDING_WIDTH 0
+#define MARGIN_TOP 0
+#define MARGIN_BOTTOM 0
+
+#define DRAW_BAR 1 //1 for below, otherwise above
+#define BAR_SIZE 20
+
 #define BORDER_COLOR_UNFOCUSED 0x9eeeee /* 0xRRGGBB */
 #define BORDER_COLOR_FOCUSED   0x55aaaa /* 0xRRGGBB */
 
@@ -43,6 +51,7 @@ enum XcbAtomLabel {
 
 extern xcb_atom_t atoms[ATOM_FINAL];
 
+extern int doDrawBar;
 void closeWM();
 
 #endif

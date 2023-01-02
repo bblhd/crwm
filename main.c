@@ -1,7 +1,10 @@
 #include <unistd.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
+#include <time.h>
+#include <signal.h>
 
 #include <xcb/xcb.h>
 #include <xcb/xcb_keysyms.h>
@@ -13,6 +16,12 @@
 xcb_connection_t *conn;
 xcb_screen_t *screen;
 xcb_window_t focused;
+xcb_gcontext_t graphics;
+
+xcb_window_t barWindow;
+char barCommand[64];
+int doDrawBar = 0;
+int doDrawBar = 0;
 
 bool shouldCloseWM = 0;
 
@@ -30,15 +39,30 @@ void setup();
 int eventHandler(void);
 void cleanup();
 
+void getCommandlineArguments(char **args, int n) {
+	while (n-- > 0) {
+		if (strcmp(args[0], "-b")==0) {
+			if (n-- > 0) {
+				doDrawBar = 1;
+				strncpy(barCommand, args[1], 64);
+				args+=2;
+			} else die("Invalid command line argument.\n");
+		} else {
+			die("Invalid command line argument.\n");
+		}
+	}
+}
+
 int main(int argc, char *argv[]) {
-	DISREGARD(argc);
-	DISREGARD(argv);
+	getCommandlineArguments(argv+1, argc-1);
 	setup();
 	while (eventHandler());
 	cleanup();
 }
 
 void setupAtoms();
+void setupGraphics();
+void cleanupGraphics();
 
 void setup() {
 	conn = xcb_connect(NULL, NULL);
@@ -60,6 +84,7 @@ void setup() {
 	setupAtoms();
 	setupControls();
 	setupPages();
+	setupGraphics();
 	
 	xcb_flush(conn);
 }
@@ -81,22 +106,70 @@ xcb_atom_t xcb_atom_get(char *name) {
 }
 
 void setupAtoms() {
-	//commented lines are unused atoms that may be useful later.
-	
-	//atoms[UTF8_STRING] = xcb_atom_get("UTF8_STRING");
 	atoms[WM_PROTOCOLS] = xcb_atom_get("WM_PROTOCOLS");
 	atoms[WM_DELETE_WINDOW] = xcb_atom_get("WM_DELETE_WINDOW");
-	//atoms[WM_STATE] = xcb_atom_get("WM_STATE");
-	//atoms[WM_TAKE_FOCUS] = xcb_atom_get("WM_TAKE_FOCUS");
-	//atoms[_NET_ACTIVE_WINDOW] = xcb_atom_get("_NET_ACTIVE_WINDOW");
-	//atoms[_NET_SUPPORTED] = xcb_atom_get("_NET_SUPPORTED");
-	//atoms[_NET_WM_NAME] = xcb_atom_get("_NET_WM_NAME");
-	//atoms[_NET_WM_STATE] = xcb_atom_get("_NET_WM_STATE");
-	//atoms[_NET_SUPPORTING_WM_CHECK] = xcb_atom_get("_NET_SUPPORTING_WM_CHECK");
-	//atoms[_NET_WM_STATE_FULLSCREEN] = xcb_atom_get("_NET_WM_STATE_FULLSCREEN");
-	//atoms[_NET_WM_WINDOW_TYPE] = xcb_atom_get("_NET_WM_WINDOW_TYPE");
-	//atoms[_NET_WM_WINDOW_TYPE_DIALOG] = xcb_atom_get("_NET_WM_WINDOW_TYPE_DIALOG");
-	//atoms[_NET_CLIENT_LIST] = xcb_atom_get("_NET_CLIENT_LIST");
+}
+
+void createBarTimer();
+
+void setupGraphics() {
+	const char *fontname = "lucidasans-12";
+	xcb_font_t font = xcb_generate_id(conn);
+    xcb_open_font(conn, font, strlen(fontname), fontname);
+    
+	graphics = xcb_generate_id(conn);
+	xcb_create_gc(
+		conn, graphics, screen->root,
+		XCB_GC_FOREGROUND | XCB_GC_BACKGROUND | XCB_GC_FONT | XCB_GC_GRAPHICS_EXPOSURES,
+		(uint32_t[]) {screen->white_pixel, screen->black_pixel, font, 0}
+	);
+	
+	xcb_close_font(conn, font);
+	
+	if (doDrawBar) {
+		barWindow = xcb_generate_id(conn);
+		xcb_create_window(
+			conn, XCB_COPY_FROM_PARENT,
+			barWindow, screen->root,
+			0, (DRAW_BAR==1) ? screen->height_in_pixels-BAR_SIZE : 0, screen->width_in_pixels, BAR_SIZE, 0,
+			XCB_WINDOW_CLASS_INPUT_OUTPUT, screen->root_visual,
+			XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK,
+			(uint32_t[]) {screen->black_pixel, XCB_EVENT_MASK_EXPOSURE}
+		);
+		xcb_map_window(conn, barWindow);
+		createBarTimer();
+	}
+}
+void cleanupGraphics() {
+	xcb_destroy_window(conn, barWindow);
+	xcb_free_gc(conn, graphics);
+}
+
+void updateGraphics() {
+	char barMessage[128];
+	FILE *pf = popen(barCommand,"r");
+    if (fgets(barMessage, 128, pf) == NULL || pclose(pf) != 0) {
+		strcpy(barMessage, "Command did not execute correctly");
+	}
+	xcb_image_text_8(conn, strlen(barMessage)-1, barWindow, graphics, 0, BAR_SIZE, barMessage);
+	xcb_flush(conn);
+}
+
+timer_t tid;
+
+void createBarTimer() {
+	timer_create(CLOCK_REALTIME, &(struct sigevent) {
+		.sigev_notify = SIGEV_THREAD,
+		.sigev_notify_function = updateGraphics,
+		.sigev_notify_attributes = NULL,
+		.sigev_value.sival_ptr = &tid
+	}, &tid);
+	
+	timer_settime(tid, 0, &(struct itimerspec) {{1, 0}, {1, 0}}, 0);
+}
+
+uint16_t getBarHeightReduction() {
+	return doDrawBar ? BAR_SIZE : 0;
 }
 
 void focus(xcb_window_t window) {
@@ -195,7 +268,6 @@ void handleFocusOut(xcb_focus_out_event_t *event) {
 
 int eventHandler(void) {
 	if (shouldCloseWM || xcb_connection_has_error(conn)) return 0;
-	
 	xcb_generic_event_t *ev = xcb_wait_for_event(conn);
 	do {
 		switch (ev->response_type & ~0x80) {
@@ -214,6 +286,7 @@ int eventHandler(void) {
 		}
 		free(ev);
 		xcb_flush(conn);
-	} while ((ev = xcb_poll_for_event(conn))!=NULL); 
+	} while ((ev = xcb_poll_for_event(conn))!=NULL);
+	if (doDrawBar) updateGraphics();
 	return 1;
 }
