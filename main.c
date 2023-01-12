@@ -21,7 +21,6 @@ xcb_gcontext_t graphics;
 xcb_window_t barWindow;
 char barCommand[64];
 int doDrawBar = 0;
-int doDrawBar = 0;
 
 bool shouldCloseWM = 0;
 
