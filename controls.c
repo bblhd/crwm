@@ -116,6 +116,7 @@ void keybinding(uint16_t mod, xcb_keycode_t keycode) {
 
 void spawn(union Arg arg) {
 	if (fork() == 0) {
+		if (fork() != 0) _exit(0);
 		if (conn) close(xcb_get_file_descriptor(conn));
 		setsid();
 		execvp(arg.c[0], arg.c);

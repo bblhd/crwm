@@ -3,8 +3,9 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
-#include <time.h>
+#include <sys/wait.h>
 #include <signal.h>
+#include <time.h>
 
 #include <xcb/xcb.h>
 #include <xcb/xcb_keysyms.h>
@@ -18,25 +19,38 @@ xcb_screen_t *screen;
 xcb_window_t focused;
 xcb_gcontext_t graphics;
 
+xcb_atom_t atoms[ATOM_FINAL];
+
 xcb_window_t barWindow;
 char barCommand[64];
 int doDrawBar = 0;
 
 bool shouldCloseWM = 0;
 
-void closeWM() {
-	shouldCloseWM = 1;
+void getCommandlineArguments(char **args, int n);
+void setup();
+void cleanup();
+void eventHandler();
+void bar();
+int shouldRemainOpen();
+void createBarTimer();
+
+int main(int argc, char *argv[]) {
+	getCommandlineArguments(argv+1, argc-1);
+	setup();
+	if (doDrawBar) createBarTimer();
+	while (shouldRemainOpen()) eventHandler();
+	wait(NULL);
+	cleanup();
 }
 
-xcb_atom_t atoms[ATOM_FINAL];
+int shouldRemainOpen() {
+	return !shouldCloseWM && !xcb_connection_has_error(conn);
+}
 
 void die(char *errstr) {
 	exit(write(STDERR_FILENO, errstr, strlen(errstr)) < 0 ? -1 : 1);
 }
-
-void setup();
-int eventHandler(void);
-void cleanup();
 
 void getCommandlineArguments(char **args, int n) {
 	while (n-- > 0) {
@@ -52,17 +66,8 @@ void getCommandlineArguments(char **args, int n) {
 	}
 }
 
-int main(int argc, char *argv[]) {
-	getCommandlineArguments(argv+1, argc-1);
-	printf("started\n");
-	setup();
-	while (eventHandler());
-	cleanup();
-}
-
 void setupAtoms();
 void setupGraphics();
-void cleanupGraphics();
 
 void setup() {
 	conn = xcb_connect(NULL, NULL);
@@ -89,7 +94,10 @@ void setup() {
 	xcb_flush(conn);
 }
 
+void cleanupGraphics();
+
 void cleanup() {
+	cleanupGraphics();
 	cleanupControls();
 	xcb_disconnect(conn);
 }
@@ -110,12 +118,10 @@ void setupAtoms() {
 	atoms[WM_DELETE_WINDOW] = xcb_atom_get("WM_DELETE_WINDOW");
 }
 
-void createBarTimer();
-
 void setupGraphics() {
 	const char *fontname = "lucidasans-12";
 	xcb_font_t font = xcb_generate_id(conn);
-    xcb_open_font(conn, font, strlen(fontname), fontname);
+	xcb_open_font(conn, font, strlen(fontname), fontname);
     
 	graphics = xcb_generate_id(conn);
 	xcb_create_gc(
@@ -137,7 +143,6 @@ void setupGraphics() {
 			(uint32_t[]) {screen->black_pixel, XCB_EVENT_MASK_EXPOSURE}
 		);
 		xcb_map_window(conn, barWindow);
-		createBarTimer();
 	}
 }
 void cleanupGraphics() {
@@ -145,10 +150,10 @@ void cleanupGraphics() {
 	xcb_free_gc(conn, graphics);
 }
 
-void updateGraphics() {
+void bar() {
 	char barMessage[128];
 	FILE *pf = popen(barCommand,"r");
-    if (fgets(barMessage, 128, pf) == NULL || pclose(pf) != 0) {
+	if (fgets(barMessage, 128, pf) == NULL || pclose(pf) != 0) {
 		strcpy(barMessage, "Command did not execute correctly");
 	}
 	xcb_clear_area(conn, 0, barWindow, 0, 0, 0, 0);
@@ -161,7 +166,7 @@ timer_t tid;
 void createBarTimer() {
 	timer_create(CLOCK_REALTIME, &(struct sigevent) {
 		.sigev_notify = SIGEV_THREAD,
-		.sigev_notify_function = updateGraphics,
+		.sigev_notify_function = bar,
 		.sigev_notify_attributes = NULL,
 		.sigev_value.sival_ptr = &tid
 	}, &tid);
@@ -267,8 +272,7 @@ void handleFocusOut(xcb_focus_out_event_t *event) {
 	setBorderColor(event->event, BORDER_COLOR_UNFOCUSED);
 }
 
-int eventHandler(void) {
-	if (shouldCloseWM || xcb_connection_has_error(conn)) return 0;
+void eventHandler() {
 	xcb_generic_event_t *ev = xcb_wait_for_event(conn);
 	do {
 		switch (ev->response_type & ~0x80) {
@@ -288,6 +292,8 @@ int eventHandler(void) {
 		free(ev);
 		xcb_flush(conn);
 	} while ((ev = xcb_poll_for_event(conn))!=NULL);
-	if (doDrawBar) updateGraphics();
-	return 1;
+}
+
+void closeWM() {
+	shouldCloseWM = 1;
 }
