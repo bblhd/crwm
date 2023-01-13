@@ -147,10 +147,10 @@ void cleanupGraphics() {
 void updateGraphics() {
 	char barMessage[128];
 	FILE *pf = popen(barCommand,"r");
-	memset(barMessage, '\0', 128);
     if (fgets(barMessage, 128, pf) == NULL || pclose(pf) != 0) {
 		strcpy(barMessage, "Command did not execute correctly");
 	}
+	xcb_clear_area(conn, 0, barWindow, 0, 0, 0, 0);
 	xcb_image_text_8(conn, strlen(barMessage)-1, barWindow, graphics, 0, BAR_SIZE-5, barMessage);
 	xcb_flush(conn);
 }
