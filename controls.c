@@ -14,9 +14,6 @@
 #include "pages.h"
 #include "controls.h"
 
-char *termcmd[] = { "st", NULL };
-char *menucmd[] = { "dmenu_run", NULL };
-
 xcb_key_symbols_t *keySymbols;
 
 xcb_keycode_t *xcb_get_keycodes(xcb_keysym_t keysym) {
@@ -42,6 +39,9 @@ void send(union Arg arg);
 #define PAGEKEY(keysym, n)\
 	{MOD1, keysym, flip, {.u=n}},\
 	{MOD1|MOD2, keysym, send, {.u=n}}
+	
+char *termcmd[] = { "st", NULL };
+char *menucmd[] = { "dmenu_run", NULL };
 
 struct Key *keys = (struct Key[]) {
 	{MOD1, 0xff0d, spawn, {.c=termcmd}}, //0xff0d = XK_Enter
@@ -80,29 +80,30 @@ struct Key *keys = (struct Key[]) {
 
 
 void setupControls() {
-	xcb_ungrab_key(conn, XCB_GRAB_ANY, screen->root, XCB_MOD_MASK_ANY);
-	
 	keySymbols = xcb_key_symbols_alloc(conn);
 	for (int i = 0; keys[i].func != NULL; i++) {
 		xcb_keycode_t *keycode = xcb_get_keycodes(keys[i].keysym);
 		if (keycode != NULL) {
-			xcb_grab_key(
-				conn, 1, screen->root,
-				keys[i].mod, *keycode,
-				XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC
-			);
+			xcb_grab_key(conn, 1, screen->root, keys[i].mod, *keycode, XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC);
 		}
 	}
 }
-void updateControls() {
+
+void cleanupControls() {
+	for (int i = 0; keys[i].func != NULL; i++) {
+		xcb_keycode_t *keycode = xcb_get_keycodes(keys[i].keysym);
+		if (keycode != NULL) {
+			xcb_ungrab_key(conn, *keycode, screen->root, keys[i].mod);
+		}
+	}
 	if (keySymbols) xcb_key_symbols_free(keySymbols);
+}
+
+void updateControls() {
+	cleanupControls();
 	setupControls();
 }
 
-void cleanupControls() {
-	if (keySymbols) xcb_key_symbols_free(keySymbols);
-	xcb_ungrab_key(conn, XCB_GRAB_ANY, screen->root, XCB_MOD_MASK_ANY);
-}
 
 void keybinding(uint16_t mod, xcb_keycode_t keycode) {
 	xcb_keysym_t keysym = xcb_get_keysym(keycode);
@@ -115,15 +116,8 @@ void keybinding(uint16_t mod, xcb_keycode_t keycode) {
 
 void spawn(union Arg arg) {
 	if (fork() == 0) {
+		if (conn) close(xcb_get_file_descriptor(conn));
 		setsid();
-		if (fork() != 0) _exit(0);
-		
-		int null = open("/dev/null", O_RDWR);
-	    dup2(null, STDIN_FILENO);
-	    dup2(null, STDOUT_FILENO);
-	    dup2(null, STDERR_FILENO);
-	    close(null);
-	    
 		execvp(arg.c[0], arg.c);
 		_exit(0);
 	}

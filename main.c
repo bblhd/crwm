@@ -54,6 +54,7 @@ void getCommandlineArguments(char **args, int n) {
 
 int main(int argc, char *argv[]) {
 	getCommandlineArguments(argv+1, argc-1);
+	printf("started\n");
 	setup();
 	while (eventHandler());
 	cleanup();
