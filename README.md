@@ -2,7 +2,7 @@
 
 Crwm (Column Row Window Manager, pronounced crumb) is a manual tiling window manager for X somewhat inspired by plan9's acme text editor, as well as a variety of window managers such as bspwm, i3wm, rio, dwm, and others.
 
-The essential pitch behind crwm is that a series of columns each containing a series of rows is a functional and efficent way of managing the tiling window space. It produces practical ways of managing visible windows, and keeps the system as a whole managable in the eyes of both the programmer and the user.
+The essential pitch behind crwm is that a series of columns each containing a series of rows could be a functional and efficent way of managing the tiling window space. It produces practical ways of managing visible windows, and keeps the system as a whole managable in the eyes of both the programmer and the user.
 
 ## Usage
 
@@ -24,6 +24,11 @@ The default keybindings for crwm are pretty simple. Default modifier key is meta
 | `mod + shift + [c,v]` | grows focused window [horizontally,vertically]
 
 All configuration is currently done by editing the source code, although this may be subject to change.
+
+### Problems/caveats
+
+- All keybindings will be lost at random (uncommonly) and only sometimes will re-enable. This is related to what programs are currently being managed by crwm, many/most never have this issue, and some more than others.
+- Multiscreen support is poor, to say the least. Screens must be configured before launch, and they will be treated as one big screen, likely with some non-visible areas getting used.
 
 ## Installing
 
