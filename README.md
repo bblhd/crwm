@@ -36,6 +36,11 @@ Compile using `make` or `make compile`, and then install it to /usr/local/bin by
 
 To uninstall just remove the executable from wherever it was installed (eg: `rm /usr/local/bin/crwm`)
 
+### Requirements
+- xcb
+- xcb-keysyms
+- lucida sans for X, if status bar is enabled
+
 ## Thanks
 
 - I used the [xwm](https://github.com/mcpcpc/xwm) by [Michael Czigler](https://github.com/mcpcpc) as a reference and to practice with xcb which was incredibly helpful due to the lack of documention
