@@ -39,7 +39,7 @@ void send(union Arg arg);
 #define PAGEKEY(keysym, n)\
 	{MOD1, keysym, flip, {.u=n}},\
 	{MOD1|MOD2, keysym, send, {.u=n}}
-	
+
 char *termcmd[] = { "st", NULL };
 char *menucmd[] = { "dmenu_run", NULL };
 

@@ -14,6 +14,8 @@
 #include "pages.h"
 #include "controls.h"
 
+#include "ctheme.h"
+
 xcb_connection_t *conn;
 xcb_screen_t *screen;
 xcb_window_t focused;
@@ -24,6 +26,11 @@ xcb_atom_t atoms[ATOM_FINAL];
 xcb_window_t barWindow;
 char barCommand[64];
 int doDrawBar = 0;
+color_t barFG;
+color_t barBG;
+
+color_t unfocusedBorder;
+color_t focusedBorder;
 
 bool shouldCloseWM = 0;
 
@@ -33,12 +40,10 @@ void cleanup();
 void eventHandler();
 void bar();
 int shouldRemainOpen();
-void createBarTimer();
 
 int main(int argc, char *argv[]) {
 	getCommandlineArguments(argv+1, argc-1);
 	setup();
-	if (doDrawBar) createBarTimer();
 	while (shouldRemainOpen()) eventHandler();
 	wait(NULL);
 	cleanup();
@@ -118,7 +123,23 @@ void setupAtoms() {
 	atoms[WM_DELETE_WINDOW] = xcb_atom_get("WM_DELETE_WINDOW");
 }
 
+void createBarTimer();
+
 void setupGraphics() {
+	if (!ctheme_load(NULL)) {
+		ctheme_set(COLORSCHEME_DEFAULT, 1, 0xffffff, RGB);
+		ctheme_set(COLORSCHEME_DEFAULT, 2, 0x000000, RGB);
+		ctheme_set(COLORSCHEME_DEFAULT, 4, 0x9eeeee, RGB);
+		ctheme_set(COLORSCHEME_SELECTED, 1, 0x000000, RGB);
+		ctheme_set(COLORSCHEME_SELECTED, 2, 0xffffff, RGB);
+		ctheme_set(COLORSCHEME_SELECTED, 4, 0x55aaaa, RGB);
+		
+	}
+	barFG = ctheme_get(COLORSCHEME_DEFAULT, 1, RGB);
+	barBG = ctheme_get(COLORSCHEME_DEFAULT, 2, RGB);
+	unfocusedBorder = ctheme_get(COLORSCHEME_DEFAULT, 4, RGB);
+	focusedBorder = ctheme_get(COLORSCHEME_SELECTED, 4, RGB);
+	
 	const char *fontname = "lucidasans-12";
 	xcb_font_t font = xcb_generate_id(conn);
 	xcb_open_font(conn, font, strlen(fontname), fontname);
@@ -127,7 +148,7 @@ void setupGraphics() {
 	xcb_create_gc(
 		conn, graphics, screen->root,
 		XCB_GC_FOREGROUND | XCB_GC_BACKGROUND | XCB_GC_FONT | XCB_GC_GRAPHICS_EXPOSURES,
-		(uint32_t[]) {screen->white_pixel, screen->black_pixel, font, 0}
+		(uint32_t[]) {barFG, barBG, font, 0}
 	);
 	
 	xcb_close_font(conn, font);
@@ -140,9 +161,10 @@ void setupGraphics() {
 			0, (DRAW_BAR==1) ? screen->height_in_pixels-BAR_SIZE : 0, screen->width_in_pixels, BAR_SIZE, 0,
 			XCB_WINDOW_CLASS_INPUT_OUTPUT, screen->root_visual,
 			XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK,
-			(uint32_t[]) {screen->black_pixel, XCB_EVENT_MASK_EXPOSURE}
+			(uint32_t[]) {barBG, XCB_EVENT_MASK_EXPOSURE}
 		);
 		xcb_map_window(conn, barWindow);
+		createBarTimer();
 	}
 }
 void cleanupGraphics() {
@@ -190,7 +212,7 @@ void focus(xcb_window_t window) {
 	}
 }
 
-void setBorderColor(xcb_window_t window, uint32_t c) {
+void setBorderColor(xcb_window_t window, color_t c) {
 	if (BORDER_WIDTH > 0 && screen->root != window && 0 != window) {
 		xcb_change_window_attributes(conn, window, XCB_CW_BORDER_PIXEL, (uint32_t[]) {c});
 	}
@@ -257,19 +279,19 @@ void handleMapRequest(xcb_map_request_event_t *event) {
 			XCB_EVENT_MASK_ENTER_WINDOW | XCB_EVENT_MASK_FOCUS_CHANGE
 		}
 	);
-	setBorderColor(event->window, BORDER_COLOR_UNFOCUSED);
+	setBorderColor(event->window, unfocusedBorder);
 	if (isMouseWithin(event->window)) focus(event->window);
 }
 
 
 void handleFocusIn(xcb_focus_in_event_t *event) {
 	//self explanatory
-	setBorderColor(event->event, BORDER_COLOR_FOCUSED);
+	setBorderColor(event->event, focusedBorder);
 }
 
 void handleFocusOut(xcb_focus_out_event_t *event) {
 	//self explanatory
-	setBorderColor(event->event, BORDER_COLOR_UNFOCUSED);
+	setBorderColor(event->event, unfocusedBorder);
 }
 
 void eventHandler() {

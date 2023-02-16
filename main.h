@@ -24,9 +24,6 @@
 #define DRAW_BAR 1 //1 for below, otherwise above
 #define BAR_SIZE 20
 
-#define BORDER_COLOR_UNFOCUSED 0x9eeeee /* 0xRRGGBB */
-#define BORDER_COLOR_FOCUSED   0x55aaaa /* 0xRRGGBB */
-
 extern xcb_connection_t *conn;
 extern xcb_screen_t *screen;
 extern xcb_drawable_t focused;
