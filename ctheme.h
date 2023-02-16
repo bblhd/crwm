@@ -41,6 +41,7 @@ typedef uint8_t colorscheme_level_t;
 
 typedef enum {RGB, BGR, RGBA, BGRA, ARGB, ABGR} color_format_t;
 
+void ctheme_clear();
 int ctheme_load(char *path);
 color_t ctheme_get(colorscheme_id_t, colorscheme_level_t, color_format_t);
 void ctheme_set(colorscheme_id_t, colorscheme_level_t, color_t, color_format_t);

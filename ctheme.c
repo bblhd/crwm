@@ -19,7 +19,7 @@ struct ColorEntry {
 #define MAX_ENTRIES_PER_COLORSCHEME 4
 struct ColorEntry colortheme[COLORSCHEME_FINAL][MAX_ENTRIES_PER_COLORSCHEME];
 
-void ctheme_base() {
+void ctheme_clear() {
 	for (colorscheme_id_t id = COLORSCHEME_DEFAULT; id != COLORSCHEME_FINAL; id++) {
 		colortheme[id][0] = (struct ColorEntry) {.isRef=YES, .reference={COLORSCHEME_DEFAULT, REQUISITE_LEVEL}};
 		for (colorscheme_level_t level = 1; level < MAX_ENTRIES_PER_COLORSCHEME; level++) {
@@ -112,12 +112,13 @@ FILE *ctheme_openHomeFolderFile(char *file, char *flags) {
 }
 
 int ctheme_load(char *path) {
-	ctheme_base();
 	FILE *file;
-	if (path) {
+	if (path == NULL) {
+		file = ctheme_openHomeFolderFile(".ctheme", "rb");
+	} else if (path[0] == '/') {
 		file = fopen(path, "rb");
 	} else {
-		file = ctheme_openHomeFolderFile(".ctheme", "rb");
+		file = ctheme_openHomeFolderFile(path, "rb");
 	}
 	int good = 0;
 	if (file) {

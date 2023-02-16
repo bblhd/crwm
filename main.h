@@ -50,5 +50,6 @@ extern xcb_atom_t atoms[ATOM_FINAL];
 
 extern int doDrawBar;
 void closeWM();
+void reloadColors();
 
 #endif

@@ -23,9 +23,10 @@ xcb_gcontext_t graphics;
 
 xcb_atom_t atoms[ATOM_FINAL];
 
-xcb_window_t barWindow;
-char barCommand[64];
+xcb_window_t barWindow = XCB_NONE;
+char *barCommand;
 int doDrawBar = 0;
+
 color_t barFG;
 color_t barBG;
 
@@ -62,7 +63,7 @@ void getCommandlineArguments(char **args, int n) {
 		if (strcmp(args[0], "-b")==0) {
 			if (n-- > 0) {
 				doDrawBar = 1;
-				strncpy(barCommand, args[1], 64);
+				barCommand = args[1];
 				args+=2;
 			} else die("Invalid command line argument.\n");
 		} else {
@@ -125,7 +126,8 @@ void setupAtoms() {
 
 void createBarTimer();
 
-void setupGraphics() {
+void reloadColors() {
+	ctheme_clear();
 	if (!ctheme_load(NULL)) {
 		ctheme_set(COLORSCHEME_DEFAULT, 1, 0xffffff, RGB);
 		ctheme_set(COLORSCHEME_DEFAULT, 2, 0x000000, RGB);
@@ -133,27 +135,14 @@ void setupGraphics() {
 		ctheme_set(COLORSCHEME_SELECTED, 1, 0x000000, RGB);
 		ctheme_set(COLORSCHEME_SELECTED, 2, 0xffffff, RGB);
 		ctheme_set(COLORSCHEME_SELECTED, 4, 0x55aaaa, RGB);
-		
 	}
 	barFG = ctheme_get(COLORSCHEME_DEFAULT, 1, RGB);
 	barBG = ctheme_get(COLORSCHEME_DEFAULT, 2, RGB);
 	unfocusedBorder = ctheme_get(COLORSCHEME_DEFAULT, 4, RGB);
 	focusedBorder = ctheme_get(COLORSCHEME_SELECTED, 4, RGB);
 	
-	const char *fontname = "lucidasans-12";
-	xcb_font_t font = xcb_generate_id(conn);
-	xcb_open_font(conn, font, strlen(fontname), fontname);
-    
-	graphics = xcb_generate_id(conn);
-	xcb_create_gc(
-		conn, graphics, screen->root,
-		XCB_GC_FOREGROUND | XCB_GC_BACKGROUND | XCB_GC_FONT | XCB_GC_GRAPHICS_EXPOSURES,
-		(uint32_t[]) {barFG, barBG, font, 0}
-	);
-	
-	xcb_close_font(conn, font);
-	
 	if (doDrawBar) {
+		if (barWindow != XCB_NONE) xcb_destroy_window(conn, barWindow);
 		barWindow = xcb_generate_id(conn);
 		xcb_create_window(
 			conn, XCB_COPY_FROM_PARENT,
@@ -164,9 +153,28 @@ void setupGraphics() {
 			(uint32_t[]) {barBG, XCB_EVENT_MASK_EXPOSURE}
 		);
 		xcb_map_window(conn, barWindow);
-		createBarTimer();
 	}
+	
+	xcb_change_gc(conn, graphics, XCB_GC_FOREGROUND | XCB_GC_BACKGROUND, (uint32_t[]) {barFG, barBG});
 }
+
+void setupGraphics() {
+	const char *fontname = "lucidasans-12";
+	xcb_font_t font = xcb_generate_id(conn);
+	xcb_open_font(conn, font, strlen(fontname), fontname);
+	graphics = xcb_generate_id(conn);
+	xcb_create_gc(
+		conn, graphics, screen->root,
+		XCB_GC_FONT | XCB_GC_GRAPHICS_EXPOSURES,
+		(uint32_t[]) {font, 1}
+	);
+	xcb_close_font(conn, font);
+	
+	reloadColors();
+	
+	if (doDrawBar) createBarTimer();
+}
+
 void cleanupGraphics() {
 	xcb_destroy_window(conn, barWindow);
 	xcb_free_gc(conn, graphics);

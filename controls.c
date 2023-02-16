@@ -6,6 +6,10 @@
 #include <sys/wait.h>
 #include <fcntl.h>
 
+#define XK_MISCELLANY
+#define XK_LATIN1
+#include <X11/keysymdef.h>
+
 #include <xcb/xcb.h>
 #include <xcb/xproto.h>
 #include <xcb/xcb_keysyms.h>
@@ -44,36 +48,37 @@ char *termcmd[] = { "st", NULL };
 char *menucmd[] = { "dmenu_run", NULL };
 
 struct Key *keys = (struct Key[]) {
-	{MOD1, 0xff0d, spawn, {.c=termcmd}}, //0xff0d = XK_Enter
-	{MOD1, 0x0064, spawn, {.c=menucmd}}, //0x0064 = XK_d
-	{MOD1, 0x0071, killclient, {0}}, //0x0071 = XK_q
-	{MOD1|MOD2, 0x0071, closewm, {0}}, //0x0071 = XK_q
+	{MOD1, XK_Return, spawn, {.c=termcmd}},
+	{MOD1, XK_d, spawn, {.c=menucmd}},
+	{MOD1, XK_q, killclient, {0}},
+	{MOD1|MOD2, XK_q, closewm, {0}},
+	{MOD1, XK_r, reloadColors, {0}},
 	
-	{MOD1, 0xff51, look, {.u=1}}, //0xff51 = XK_Left
-	{MOD1, 0xff52, look, {.u=2}}, //0xff52 = XK_Up
-	{MOD1, 0xff53, look, {.u=3}}, //0xff53 = XK_Right
-	{MOD1, 0xff54, look, {.u=4}}, //0xff54 = XK_Down
+	{MOD1, XK_Left, look, {.u=1}},
+	{MOD1, XK_Up, look, {.u=2}},
+	{MOD1, XK_Right, look, {.u=3}},
+	{MOD1, XK_Down, look, {.u=4}},
 	
-	{MOD1|MOD2, 0xff51, move, {.u=1}}, //0xff51 = XK_Left
-	{MOD1|MOD2, 0xff52, move, {.u=2}}, //0xff52 = XK_Up
-	{MOD1|MOD2, 0xff53, move, {.u=3}}, //0xff53 = XK_Right
-	{MOD1|MOD2, 0xff54, move, {.u=4}}, //0xff54 = XK_Down
+	{MOD1|MOD2, XK_Left, move, {.u=1}},
+	{MOD1|MOD2, XK_Up, move, {.u=2}},
+	{MOD1|MOD2, XK_Right, move, {.u=3}},
+	{MOD1|MOD2, XK_Down, move, {.u=4}},
 	
-	{MOD1, 0x0063, horizontalWeight, {.i=-1}}, //0x0063 = XK_c
-	{MOD1, 0x0076, verticalWeight, {.i=-1}}, //0x0076 = XK_v
+	{MOD1, XK_c, horizontalWeight, {.i=-1}},
+	{MOD1, XK_v, verticalWeight, {.i=-1}},
 	
-	{MOD1|MOD2, 0x0063, horizontalWeight, {.i=1}}, //0x0063 = XK_c
-	{MOD1|MOD2, 0x0076, verticalWeight, {.i=1}}, //0x0076 = XK_v
+	{MOD1|MOD2, XK_c, horizontalWeight, {.i=1}},
+	{MOD1|MOD2, XK_v, verticalWeight, {.i=1}},
 	
-	PAGEKEY(0x0031, 0), //0x0031 = XK_1
-	PAGEKEY(0x0032, 1), //0x0032 = XK_2
-	PAGEKEY(0x0033, 2), //0x0033 = XK_3
-	PAGEKEY(0x0034, 3), //0x0034 = XK_4
-	PAGEKEY(0x0035, 4), //0x0035 = XK_5
-	PAGEKEY(0x0036, 5), //0x0036 = XK_6
-	PAGEKEY(0x0037, 6), //0x0037 = XK_7
-	PAGEKEY(0x0038, 7), //0x0038 = XK_8
-	PAGEKEY(0x0039, 8), //0x0039 = XK_9
+	PAGEKEY(XK_1, 0),
+	PAGEKEY(XK_2, 1),
+	PAGEKEY(XK_3, 2),
+	PAGEKEY(XK_4, 3),
+	PAGEKEY(XK_5, 4),
+	PAGEKEY(XK_6, 5),
+	PAGEKEY(XK_7, 6),
+	PAGEKEY(XK_8, 7),
+	PAGEKEY(XK_9, 8),
 	
 	{0, 0, NULL, {0}}
 };
