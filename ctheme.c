@@ -74,6 +74,7 @@ int ctheme_readEntry(char **data, struct ColorEntry *dest) {
 		
 		if (**data >= '0' && **data <= '9') {
 			entry.reference.level = **data - '0';
+			if (entry.reference.level > 0) entry.reference.level--;
 			(*data)++;
 		} else {
 			entry.reference.level = REQUISITE_LEVEL;
