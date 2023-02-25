@@ -19,6 +19,12 @@ struct ColorEntry {
 #define MAX_ENTRIES_PER_COLORSCHEME 4
 struct ColorEntry colortheme[COLORSCHEME_FINAL][MAX_ENTRIES_PER_COLORSCHEME];
 
+color_t ctheme_reverseHue(color_t color) {
+	return ((color&0xff)<<16)
+		| (color&0xff00)
+		| ((color&0xff0000)>>16);
+}
+
 void ctheme_clear() {
 	for (colorscheme_id_t id = COLORSCHEME_DEFAULT; id != COLORSCHEME_FINAL; id++) {
 		colortheme[id][0] = (struct ColorEntry) {.isRef=YES, .reference={COLORSCHEME_DEFAULT, REQUISITE_LEVEL}};
@@ -65,7 +71,7 @@ int ctheme_readEntry(char **data, struct ColorEntry *dest) {
 	if (**data == '#') {
 		entry.isRef = NO;
 		(*data)++;
-		entry.exact = strtol(*data, data, 16);
+		entry.exact = ctheme_reverseHue(strtol(*data, data, 16));
 	} else {
 		entry.isRef = YES;
 		
@@ -147,23 +153,17 @@ void ctheme_set(colorscheme_id_t id, colorscheme_level_t level, color_t color, c
 	if (id == COLORSCHEME_FINAL) id = COLORSCHEME_DEFAULT;
 	
 	switch (format) {
-		case RGBA:
-		case BGRA:
+		case RGBA: case BGRA:
 		color = color & 0xffffff;
 		break;
-		case ARGB:
-		case ABGR:
+		case ARGB: case ABGR:
 		color = color >> 8;
 		default:
 	}
 	
 	switch (format) {
-		case BGR:
-		case BGRA:
-		case ABGR:
-		color = ((color&0xff)<<16)
-			| (color&0xff00)
-			| ((color&0xff0000)>>16);
+		case BGR: case BGRA: case ABGR:
+		color = ctheme_reverseHue(color);
 		break;
 		default:
 	}
@@ -201,23 +201,17 @@ color_t ctheme_get(colorscheme_id_t id, colorscheme_level_t level, color_format_
 	color_t c = gotten.exact;
 	
 	switch (format) {
-		case BGR:
-		case BGRA:
-		case ABGR:
-		c = ((c&0xff)<<16)
-			| (c&0xff00)
-			| ((c&0xff0000)>>16);
+		case BGR: case BGRA: case ABGR:
+		c = ctheme_reverseHue(c);
 		break;
 		default:
 	}
 	
 	switch (format) {
-		case RGBA:
-		case BGRA:
+		case RGBA: case BGRA:
 		c = c | 0xff000000;
 		break;
-		case ARGB:
-		case ABGR:
+		case ARGB: case ABGR:
 		c = (c<<8) | 0xff;
 		default:
 	}
