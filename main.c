@@ -129,17 +129,17 @@ void createBarTimer();
 void reloadColors() {
 	ctheme_clear();
 	if (!ctheme_load(NULL)) {
-		ctheme_set(COLORSCHEME_DEFAULT, 1, 0xffffff, RGB);
-		ctheme_set(COLORSCHEME_DEFAULT, 2, 0x000000, RGB);
-		ctheme_set(COLORSCHEME_DEFAULT, 4, 0x9eeeee, RGB);
-		ctheme_set(COLORSCHEME_SELECTED, 1, 0x000000, RGB);
-		ctheme_set(COLORSCHEME_SELECTED, 2, 0xffffff, RGB);
-		ctheme_set(COLORSCHEME_SELECTED, 4, 0x55aaaa, RGB);
+		ctheme_set(COLORSCHEME_DEFAULT, 1, 0xffffff, BGR);
+		ctheme_set(COLORSCHEME_DEFAULT, 2, 0x000000, BGR);
+		ctheme_set(COLORSCHEME_DEFAULT, 4, 0x9eeeee, BGR);
+		ctheme_set(COLORSCHEME_SELECTED, 1, 0x000000, BGR);
+		ctheme_set(COLORSCHEME_SELECTED, 2, 0xffffff, BGR);
+		ctheme_set(COLORSCHEME_SELECTED, 4, 0x55aaaa, BGR);
 	}
-	barFG = ctheme_get(COLORSCHEME_DEFAULT, 1, RGB);
-	barBG = ctheme_get(COLORSCHEME_DEFAULT, 2, RGB);
-	unfocusedBorder = ctheme_get(COLORSCHEME_DEFAULT, 4, RGB);
-	focusedBorder = ctheme_get(COLORSCHEME_SELECTED, 4, RGB);
+	barFG = ctheme_get(COLORSCHEME_DEFAULT, 1, BGR);
+	barBG = ctheme_get(COLORSCHEME_DEFAULT, 2, BGR);
+	unfocusedBorder = ctheme_get(COLORSCHEME_DEFAULT, 4, BGR);
+	focusedBorder = ctheme_get(COLORSCHEME_SELECTED, 4, BGR);
 	
 	if (doDrawBar) {
 		if (barWindow != XCB_NONE) xcb_destroy_window(conn, barWindow);
