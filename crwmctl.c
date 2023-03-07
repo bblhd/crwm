@@ -1,13 +1,12 @@
 #include <stdlib.h>
-#include <stdint.h>
 #include <stdbool.h>
-#include <unistd.h>
 #include <string.h>
+
 #include <stdio.h>
+
 #include <errno.h>
 
-#include <time.h>
-
+#include <unistd.h>
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -30,21 +29,15 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 
-void msleep(unsigned long m) {
-    struct timespec ts;
-    ts.tv_sec = m / 1000;
-    ts.tv_nsec = (m % 1000) * 1000000;
-    nanosleep(&ts, &ts);
-}
-
 bool setupFIFO() {
 	if (!getenv("DISPLAY")) return false;
 	size_t pathlen = strlen("/tmp/crwm.d/")+strlen(getenv("DISPLAY"))+1;
 	fifopath = malloc(pathlen);
+	if (!fifopath) return false;
 	snprintf(fifopath, pathlen, "/tmp/crwm.d/%s", getenv("DISPLAY"));
 	
 	if (mkdir("/tmp/crwm.d", S_IRWXU | S_IRWXG | S_IRWXO) == 0 || errno == EEXIST) {
-		if (mkfifo(fifopath, S_IRWXU | S_IRWXG | S_IRWXO) || errno == EEXIST) return true;
+		if (mkfifo(fifopath, S_IRWXU | S_IRWXG | S_IRWXO) == 0 || errno == EEXIST) return true;
 		rmdir("/tmp/crwm.d");
 	}
 	return false;

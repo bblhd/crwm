@@ -260,7 +260,7 @@ bool setupFIFO() {
 	snprintf(fifopath, pathlen, "/tmp/crwm.d/%s", getenv("DISPLAY"));
 	
 	if (mkdir("/tmp/crwm.d", S_IRWXU | S_IRWXG | S_IRWXO) == 0 || errno == EEXIST) {
-		if (mkfifo(fifopath, S_IRWXU | S_IRWXG | S_IRWXO) || errno == EEXIST) return true;
+		if (mkfifo(fifopath, S_IRWXU | S_IRWXG | S_IRWXO) == 0 || errno == EEXIST) return true;
 		rmdir("/tmp/crwm.d");
 	}
 	return false;
@@ -358,11 +358,7 @@ void commands() {
 		break;
 		case COMMAND_SWITCH:
 		if (command[1]-1 >= 0 && command[1]-1 < TABLE_COUNT) {
-			if (tables[command[1]-1].monitor) {
-				warpMouseToCenterOfMonitor(tables[command[1]-1].monitor);
-			} else {
-				sendTableToMonitor(getActiveMonitor(), &tables[command[1]-1]);
-			}
+			sendTableToMonitor(getActiveMonitor(), &tables[command[1]-1]);
 		}
 		break;
 		case COMMAND_GROW_VERTICAL:
