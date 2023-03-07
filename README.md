@@ -27,7 +27,7 @@ All configuration is currently done by editing the source code, although this ma
 
 ### Problems/caveats
 
-- All keybindings will be lost at random (uncommonly) and only sometimes will re-enable. This is related to what programs are currently being managed by crwm, many/most never have this issue, and some more than others.
+- All keybindings can be lost at random (uncommonly) and only sometimes will re-enable. This seems to be linked to what programs are currently being managed by crwm, many/most never cause this issue, and some more than others.
 - Multiscreen support is poor, to say the least. Screens must be configured before launch, and they will be treated as one big screen, likely with some non-visible areas getting used.
 
 ## Installing
