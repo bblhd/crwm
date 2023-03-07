@@ -1,3 +1,4 @@
 crwm
+crwmkeys
+crwmctl
 *.o
-build.rc
