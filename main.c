@@ -19,6 +19,7 @@
 xcb_connection_t *conn;
 xcb_screen_t *screen;
 xcb_window_t focused;
+
 xcb_gcontext_t graphics;
 
 xcb_atom_t atoms[ATOM_FINAL];
