@@ -405,8 +405,9 @@ void commands() {
 		case COMMAND_PADDING_HORIZONTAL:
 		case COMMAND_PADDING_VERTICAL:
 		for (size_t m = 0; m < monitorCount; m++) {
-			recalculateTable(monitors[m].table);
+			if (monitors[m].table) recalculateTable(monitors[m].table);
 		}
+		break;
 		default:
 	}
 }
