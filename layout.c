@@ -262,31 +262,35 @@ void recalculateTable(table_t *table) {
 	
 	uint16_t totalColumnWeight = 0;
 	uint16_t workingWidth = table->monitor->width
-		- instance->margin.left - instance->margin.right;
+		- instance->margin.left - instance->margin.right
+			+ instance->padding.horizontal;
 	for (column_t *column = table->columns; column; column = column->next) {
 		totalColumnWeight += column->weight+1;
-		if (column->next) workingWidth -= instance->padding.horizontal;
+		workingWidth -= instance->padding.horizontal;
 	}
 	
 	uint16_t x = table->monitor->x + instance->margin.left;
 	for (column_t *column = table->columns; column; column = column->next) {
 		uint16_t w = 0;
 		if (column->next) w = (column->weight+1) * workingWidth / totalColumnWeight;
-		else w = workingWidth - (x - table->monitor->x - instance->margin.left);
+		else w = (table->monitor->width - instance->margin.left - instance->margin.right)
+			- (x - table->monitor->x - instance->margin.left);
 		
 		uint16_t totalRowWeight = 0;
 		uint16_t workingHeight = table->monitor->height
-			- instance->margin.top - instance->margin.bottom;
+			- instance->margin.top - instance->margin.bottom
+			+ instance->padding.vertical;
 		for (row_t *row = column->rows; row; row = row->next) {
 			totalRowWeight += row->weight+1;
-			if (row->next) workingHeight -= instance->padding.vertical;
+			workingHeight -= instance->padding.vertical;
 		}
 		
 		uint16_t y = table->monitor->y + instance->margin.top;
 		for (row_t *row = column->rows; row; row = row->next) {
 			uint16_t h = 0;
 			if (row->next) h = (row->weight+1) * workingHeight / totalRowWeight;
-			else h = workingHeight - (y - table->monitor->y - instance->margin.top);
+			else h = (table->monitor->height - instance->margin.top - instance->margin.bottom)
+				- (y - table->monitor->y - instance->margin.top);
 			
 			uint16_t mask = XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y
 				| XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT

@@ -180,8 +180,8 @@ size_t interpret(char **args) {
 		
 		if (token("padding", &args)) {
 			if (token("all", &args)) command = COMMAND_PADDING_ALL;
-			else if (token("vertical", &args)) command = COMMAND_PADDING_HORIZONTAL;
-			else if (token("horizontal", &args)) command = COMMAND_PADDING_VERTICAL;
+			else if (token("horizontal", &args)) command = COMMAND_PADDING_HORIZONTAL;
+			else if (token("vertical", &args)) command = COMMAND_PADDING_VERTICAL;
 		} else if (token("margin", &args)) {
 			if (token("all", &args)) command = COMMAND_MARGIN_ALL;
 			else if (token("top", &args)) command = COMMAND_MARGIN_TOP;
