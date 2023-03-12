@@ -49,17 +49,25 @@ void cleanupFIFO() {
 }
 
 enum Commandcodes {
-	COMMAND_NULL=0,
-	COMMAND_EXIT=1,
-	COMMAND_RELOAD=2,
-	COMMAND_CLOSE=3,
-	COMMAND_MOVE=4,
-	COMMAND_LOOK=5,
-	COMMAND_SEND=6,
-	COMMAND_SWITCH=7,
-	COMMAND_GROW_VERTICAL=8,
-	COMMAND_GROW_HORIZONTAL=9,
-	COMMAND_START=10,
+	COMMAND_NULL,
+	COMMAND_EXIT,
+	COMMAND_RELOAD,
+	COMMAND_CLOSE,
+	COMMAND_MOVE,
+	COMMAND_LOOK,
+	COMMAND_SEND,
+	COMMAND_SWITCH,
+	COMMAND_GROW_VERTICAL,
+	COMMAND_GROW_HORIZONTAL,
+	COMMAND_BORDER_THICKNESS,
+	COMMAND_PADDING_ALL,
+	COMMAND_MARGIN_ALL,
+	COMMAND_PADDING_HORIZONTAL,
+	COMMAND_PADDING_VERTICAL,
+	COMMAND_MARGIN_TOP,
+	COMMAND_MARGIN_BOTTOM,
+	COMMAND_MARGIN_LEFT,
+	COMMAND_MARGIN_RIGHT,
 };
 
 size_t sendBuffer(size_t n, char *buffer) {
@@ -142,35 +150,49 @@ size_t interpret(char **args) {
 			if (w && eot(args)) return send(2, COMMAND_SWITCH, w);
 		}
 	} else if (token("shrink", &args)) {
-		bool v=false, h=false;
-		v = token("vertically", &args);
-		if (!v) h = token("horizontally", &args);
-		
-		if ((v || h) && token("by", &args)) {
-			char n = number(&args);
-			if (n>0 && eot(args)) return send(2, v ? COMMAND_GROW_VERTICAL : COMMAND_GROW_HORIZONTAL, -n);
+		if (token("focused", &args)) {
+			bool v=false, h=false;
+			v = token("vertically", &args);
+			if (!v) h = token("horizontally", &args);
+			
+			if ((v || h) && token("by", &args)) {
+				char n = number(&args);
+				if (n>0 && eot(args)) {
+					return send(2, v ? COMMAND_GROW_VERTICAL : COMMAND_GROW_HORIZONTAL, -n);
+				}
+			}
 		}
 	} else if (token("grow", &args)) {
-		bool v=false, h=false;
-		v = token("vertically", &args);
-		if (!v) h = token("horizontally", &args);
+		if (token("focused", &args)) {
+			bool v=false, h=false;
+			v = token("vertically", &args);
+			if (!v) h = token("horizontally", &args);
+			
+			if ((v || h) && token("by", &args)) {
+				char n = number(&args);
+				if (n>0 && eot(args)) {
+					return send(2, v ? COMMAND_GROW_VERTICAL : COMMAND_GROW_HORIZONTAL, n);
+				}
+			}
+		}
+	} else {
+		enum Commandcodes command = COMMAND_NULL;
 		
-		if ((v || h) && token("by", &args)) {
-			char n = number(&args);
-			if (n>0 && eot(args)) return send(2, v ? COMMAND_GROW_VERTICAL : COMMAND_GROW_HORIZONTAL, n);
+		if (token("padding", &args)) {
+			if (token("all", &args)) command = COMMAND_PADDING_ALL;
+			else if (token("vertical", &args)) command = COMMAND_PADDING_HORIZONTAL;
+			else if (token("horizontal", &args)) command = COMMAND_PADDING_VERTICAL;
+		} else if (token("margin", &args)) {
+			if (token("all", &args)) command = COMMAND_MARGIN_ALL;
+			else if (token("top", &args)) command = COMMAND_MARGIN_TOP;
+			else if (token("bottom", &args)) command = COMMAND_MARGIN_BOTTOM;
+			else if (token("left", &args)) command = COMMAND_MARGIN_LEFT;
+			else if (token("right", &args)) command = COMMAND_MARGIN_RIGHT;
+		} else if (token("thickness", &args)) command = COMMAND_BORDER_THICKNESS;
+		
+		if (command != COMMAND_NULL) {
+			return send(2, command, number(&args));
 		}
-	} else if (token("start", &args)) {
-		char buffer[129];
-		buffer[0] = COMMAND_START;
-		buffer[1] = 0;
-		size_t n = 2;
-		while (*args && n < 129) {
-			n += snprintf(buffer+n, 129-n, "%s", *args);
-			n++;
-			args++;
-		}
-		buffer[1] = n-2;
-		return sendBuffer(n, buffer);
 	}
 	fprintf(stderr, "Bad crwmctl command.\n");
 	return 0;

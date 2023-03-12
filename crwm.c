@@ -36,7 +36,6 @@ const event_handler_t eventHandlers[XCB_GE_GENERIC];
 
 typedef unsigned int uint;
 
-void msleep(unsigned long);
 void spawn(char **command);
 void killclient(xcb_window_t);
 void die(char *errstr);
@@ -70,17 +69,25 @@ size_t monitorCount = 0;
 table_t tables[TABLE_COUNT];
 
 enum Commandcodes {
-	COMMAND_NULL=0,
-	COMMAND_EXIT=1,
-	COMMAND_RELOAD=2,
-	COMMAND_CLOSE=3,
-	COMMAND_MOVE=4,
-	COMMAND_LOOK=5,
-	COMMAND_SEND=6,
-	COMMAND_SWITCH=7,
-	COMMAND_GROW_VERTICAL=8,
-	COMMAND_GROW_HORIZONTAL=9,
-	COMMAND_START=10,
+	COMMAND_NULL,
+	COMMAND_EXIT,
+	COMMAND_RELOAD,
+	COMMAND_CLOSE,
+	COMMAND_MOVE,
+	COMMAND_LOOK,
+	COMMAND_SEND,
+	COMMAND_SWITCH,
+	COMMAND_GROW_VERTICAL,
+	COMMAND_GROW_HORIZONTAL,
+	COMMAND_BORDER_THICKNESS,
+	COMMAND_PADDING_ALL,
+	COMMAND_MARGIN_ALL,
+	COMMAND_PADDING_HORIZONTAL,
+	COMMAND_PADDING_VERTICAL,
+	COMMAND_MARGIN_TOP,
+	COMMAND_MARGIN_BOTTOM,
+	COMMAND_MARGIN_LEFT,
+	COMMAND_MARGIN_RIGHT,
 };
 
 int main(int argc, char *argv[]) {
@@ -125,13 +132,13 @@ void setup() {
 	
 	global.border.thickness = 1;
 	
-	global.padding.horizontal = 5;
-	global.padding.vertical = 5;
+	global.padding.horizontal = 0;
+	global.padding.vertical = 0;
 	
-	global.margin.top = 5;
-	global.margin.bottom = 5;
-	global.margin.left = 5;
-	global.margin.right = 5;
+	global.margin.top = 0;
+	global.margin.bottom = 0;
+	global.margin.left = 0;
+	global.margin.right = 0;
 	
 	reloadColors();
 	setupAtoms();
@@ -279,27 +286,13 @@ void moveRowDown(row_t *row) {
 }
 
 void moveRowUp(row_t *row) {
-	if (row->previous && row->previous->previous) {
-		moveRowToRow(row->previous->previous, row);
-	} else {
-		moveRowToColumn(row->column, row);
+	if (row->previous) {
+		if (row->previous->previous) {
+			moveRowToRow(row->previous->previous, row);
+		} else {
+			moveRowToColumn(row->column, row);
+		}
 	}
-}
-
-void spawnFromNullSeperatedStrings(char *strings, uint n) {
-	uint count = 0;
-	for (size_t i = 0; i < n; i++) {
-		if (strings[i] == '\0') count++;
-	}
-	char *args[count+1];
-	uint a = 0, i = 0; 
-	while (a < count && i < n) {
-		args[a] = strings+i;
-		i += strlen(args[a]) + 1;
-		a++;
-	}
-	args[count] = NULL;
-	spawn(args);
 }
 
 void commands() {
@@ -311,14 +304,7 @@ void commands() {
 	if (read(fd, command, 2) != 2) {
 		close(fd);
 		return;
-	}
-	
-	char textArg[127];
-	size_t textArgLength = 0;
-	if (command[0] == COMMAND_START) {
-		textArgLength = read(fd, textArg, (size_t) command[1]);
-	}
-	close(fd);
+	} else close(fd);
 	
 	switch (command[0]) {
 		case COMMAND_EXIT:
@@ -327,9 +313,11 @@ void commands() {
 		case COMMAND_RELOAD:
 		reloadColors();
 		break;
+		
 		case COMMAND_CLOSE:
 		if (focused) killclient(focused->window);
 		break;
+		
 		case COMMAND_MOVE:
 		if (focused) switch (command[1]) {
 			case 'u': moveRowUp(focused); break;
@@ -351,6 +339,7 @@ void commands() {
 			lookAtWindow(focused->window);
 		}
 		break;
+		
 		case COMMAND_SEND:
 		if (focused && command[1]-1 >= 0 && command[1]-1 < TABLE_COUNT) {
 			moveRowToTable(&tables[command[1]-1], focused);
@@ -361,15 +350,63 @@ void commands() {
 			sendTableToMonitor(getActiveMonitor(), &tables[command[1]-1]);
 		}
 		break;
+		
 		case COMMAND_GROW_VERTICAL:
 		if (focused) growVertically(focused, (int) command[1]);
 		break;
 		case COMMAND_GROW_HORIZONTAL:
 		if (focused) growHorizontally(focused, (int) command[1]);
 		break;
-		case COMMAND_START:
-		spawnFromNullSeperatedStrings(textArg, textArgLength);
+		
+		case COMMAND_BORDER_THICKNESS:
+		global.border.thickness = (uint16_t) command[1];
 		break;
+		
+		case COMMAND_PADDING_ALL:
+		global.padding.horizontal = (uint16_t) command[1];
+		global.padding.vertical = (uint16_t) command[1];
+		break;
+		case COMMAND_PADDING_HORIZONTAL:
+		global.padding.horizontal = (uint16_t) command[1];
+		break;
+		case COMMAND_PADDING_VERTICAL:
+		global.padding.vertical = (uint16_t) command[1];
+		break;
+		
+		case COMMAND_MARGIN_ALL:
+		global.margin.top = (uint16_t) command[1];
+		global.margin.bottom = (uint16_t) command[1];
+		global.margin.left = (uint16_t) command[1];
+		global.margin.right = (uint16_t) command[1];
+		break;
+		case COMMAND_MARGIN_TOP:
+		global.margin.top = (uint16_t) command[1];
+		break;
+		case COMMAND_MARGIN_BOTTOM:
+		global.margin.bottom = (uint16_t) command[1];
+		break;
+		case COMMAND_MARGIN_LEFT:
+		global.margin.left = (uint16_t) command[1];
+		break;
+		case COMMAND_MARGIN_RIGHT:
+		global.margin.right = (uint16_t) command[1];
+		break;
+		default:
+	}
+	
+	switch(command[1]) {
+		case COMMAND_BORDER_THICKNESS:
+		case COMMAND_MARGIN_ALL:
+		case COMMAND_MARGIN_TOP:
+		case COMMAND_MARGIN_BOTTOM:
+		case COMMAND_MARGIN_LEFT:
+		case COMMAND_MARGIN_RIGHT:
+		case COMMAND_PADDING_ALL:
+		case COMMAND_PADDING_HORIZONTAL:
+		case COMMAND_PADDING_VERTICAL:
+		for (size_t m = 0; m < monitorCount; m++) {
+			recalculateTable(monitors[m].table);
+		}
 		default:
 	}
 }
@@ -377,6 +414,11 @@ void commands() {
 void handleEnterNotify(xcb_enter_notify_event_t *event) {
 	focus(event->event);
 }
+
+void handleLeaveNotify(xcb_leave_notify_event_t *event) {
+	unfocus(event->event);
+}
+
 
 void handleFocusIn(xcb_focus_in_event_t *event) {
 	setBorderColor(event->event, global.border.focused);
@@ -394,7 +436,9 @@ void handleMapRequest(xcb_map_request_event_t *event) {
 	);
 	xcb_change_window_attributes_checked(
 		global.connection, event->window, XCB_CW_EVENT_MASK, (uint32_t[]) {
-			XCB_EVENT_MASK_ENTER_WINDOW | XCB_EVENT_MASK_FOCUS_CHANGE
+			XCB_EVENT_MASK_ENTER_WINDOW | XCB_EVENT_MASK_LEAVE_WINDOW
+			| XCB_EVENT_MASK_FOCUS_CHANGE
+			| XCB_EVENT_MASK_RESIZE_REDIRECT
 		}
 	);
 	setBorderColor(event->window, global.border.unfocused);
@@ -411,6 +455,7 @@ void handleDestroyNotify(xcb_destroy_notify_event_t *event) {
 
 const event_handler_t eventHandlers[] = {
 	[XCB_ENTER_NOTIFY] = (event_handler_t) handleEnterNotify,
+	[XCB_LEAVE_NOTIFY] = (event_handler_t) handleLeaveNotify,
 	[XCB_FOCUS_IN] = (event_handler_t) handleFocusIn,
 	[XCB_FOCUS_OUT] = (event_handler_t) handleFocusOut,
 	[XCB_MAP_REQUEST] = (event_handler_t) handleMapRequest,
@@ -419,6 +464,10 @@ const event_handler_t eventHandlers[] = {
 };
 
 monitor_t *getActiveMonitor() {
+	if (focused && focused->column->table->monitor) {
+		return focused->column->table->monitor;
+	}
+	
 	xcb_query_pointer_reply_t *pointer = xcb_query_pointer_reply(
 		global.connection, xcb_query_pointer(global.connection, global.root), XCB_NONE
 	);
@@ -488,8 +537,8 @@ void focus(xcb_window_t window) {
 }
 
 void unfocus(xcb_window_t window) {
-	if (window > 0 && window != global.root && focused == managed(window)) {
-		xcb_set_input_focus(global.connection, XCB_NONE, XCB_NONE, XCB_CURRENT_TIME);
+	if (focused && focused->window == window) {
+		xcb_set_input_focus(global.connection, XCB_INPUT_FOCUS_POINTER_ROOT, global.root, XCB_CURRENT_TIME);
 		focused = NULL;
 	}
 }

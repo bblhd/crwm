@@ -84,10 +84,10 @@ int main(int argc, char **argv) {
 	addKeybinding(SECONDARY_MOD, XK_Up, "crwmctl move focused up");
 	addKeybinding(SECONDARY_MOD, XK_Down, "crwmctl move focused down");
 	
-	addKeybinding(PRIMARY_MOD, XK_c, "crwmctl shrink horizontally by 1");
-	addKeybinding(PRIMARY_MOD, XK_v, "crwmctl shrink vertically by 1");
-	addKeybinding(SECONDARY_MOD, XK_c, "crwmctl grow horizontally by 1");
-	addKeybinding(SECONDARY_MOD, XK_v, "crwmctl grow vertically by 1");
+	addKeybinding(PRIMARY_MOD, XK_c, "crwmctl shrink focused horizontally by 1");
+	addKeybinding(PRIMARY_MOD, XK_v, "crwmctl shrink focused vertically by 1");
+	addKeybinding(SECONDARY_MOD, XK_c, "crwmctl grow focused horizontally by 1");
+	addKeybinding(SECONDARY_MOD, XK_v, "crwmctl grow focused vertically by 1");
 	
 	addKeybinding(PRIMARY_MOD, XK_1, "crwmctl switch to 1");
 	addKeybinding(PRIMARY_MOD, XK_2, "crwmctl switch to 2");
@@ -129,8 +129,8 @@ int eventHandler() {
 			keybinding(((xcb_key_press_event_t *) ev)->state, ((xcb_key_press_event_t *) ev)->detail);
 			break;
 		}
-		free(ev);
 		xcb_flush(conn);
+		free(ev);
 	};
 	xcb_flush(conn);
 	if (xcb_connection_has_error(conn) || shouldClose) return 0;

@@ -270,7 +270,9 @@ void recalculateTable(table_t *table) {
 	
 	uint16_t x = table->monitor->x + instance->margin.left;
 	for (column_t *column = table->columns; column; column = column->next) {
-		uint16_t w = (column->weight+1) * workingWidth / totalColumnWeight;
+		uint16_t w = 0;
+		if (column->next) w = (column->weight+1) * workingWidth / totalColumnWeight;
+		else w = workingWidth - (x - table->monitor->x - instance->margin.left);
 		
 		uint16_t totalRowWeight = 0;
 		uint16_t workingHeight = table->monitor->height
@@ -282,12 +284,15 @@ void recalculateTable(table_t *table) {
 		
 		uint16_t y = table->monitor->y + instance->margin.top;
 		for (row_t *row = column->rows; row; row = row->next) {
-			uint16_t h = (row->weight+1) * workingHeight / totalRowWeight;
+			uint16_t h = 0;
+			if (row->next) h = (row->weight+1) * workingHeight / totalRowWeight;
+			else h = workingHeight - (y - table->monitor->y - instance->margin.top);
 			
 			uint16_t mask = XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y
-				|  XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT;
+				| XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT
+				| XCB_CONFIG_WINDOW_BORDER_WIDTH;
 			xcb_configure_window(instance->connection, row->window, mask, (uint32_t[]) {
-				x, y, w - 2*instance->border.thickness, h - 2*instance->border.thickness
+				x, y, w - 2*instance->border.thickness, h - 2*instance->border.thickness, instance->border.thickness
 			});
 			
 			y += h + instance->padding.vertical;

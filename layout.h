@@ -62,6 +62,8 @@ struct Row {
 	uint8_t hidden;
 };
 
+void recalculateTable(table_t *);
+
 void sendTableToMonitor(monitor_t *, table_t *);
 void cleanupTable(table_t *);
 
