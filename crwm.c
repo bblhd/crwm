@@ -359,37 +359,37 @@ void commands() {
 		break;
 		
 		case COMMAND_BORDER_THICKNESS:
-		global.border.thickness = (uint16_t) command[1];
+		global.border.thickness += (uint16_t) command[1];
 		break;
 		
 		case COMMAND_PADDING_ALL:
-		global.padding.horizontal = (uint16_t) command[1];
-		global.padding.vertical = (uint16_t) command[1];
+		global.padding.horizontal += (uint16_t) command[1];
+		global.padding.vertical += (uint16_t) command[1];
 		break;
 		case COMMAND_PADDING_HORIZONTAL:
-		global.padding.horizontal = (uint16_t) command[1];
+		global.padding.horizontal += (uint16_t) command[1];
 		break;
 		case COMMAND_PADDING_VERTICAL:
-		global.padding.vertical = (uint16_t) command[1];
+		global.padding.vertical += (uint16_t) command[1];
 		break;
 		
 		case COMMAND_MARGIN_ALL:
-		global.margin.top = (uint16_t) command[1];
-		global.margin.bottom = (uint16_t) command[1];
-		global.margin.left = (uint16_t) command[1];
-		global.margin.right = (uint16_t) command[1];
+		global.margin.top += (uint16_t) command[1];
+		global.margin.bottom += (uint16_t) command[1];
+		global.margin.left += (uint16_t) command[1];
+		global.margin.right += (uint16_t) command[1];
 		break;
 		case COMMAND_MARGIN_TOP:
-		global.margin.top = (uint16_t) command[1];
+		global.margin.top += (uint16_t) command[1];
 		break;
 		case COMMAND_MARGIN_BOTTOM:
-		global.margin.bottom = (uint16_t) command[1];
+		global.margin.bottom += (uint16_t) command[1];
 		break;
 		case COMMAND_MARGIN_LEFT:
-		global.margin.left = (uint16_t) command[1];
+		global.margin.left += (uint16_t) command[1];
 		break;
 		case COMMAND_MARGIN_RIGHT:
-		global.margin.right = (uint16_t) command[1];
+		global.margin.right += (uint16_t) command[1];
 		break;
 		default:
 	}
