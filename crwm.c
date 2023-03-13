@@ -279,22 +279,6 @@ void cleanupFIFO() {
 	rmdir("/tmp/crwm.d");
 }
 
-void moveRowDown(row_t *row) {
-	if (row->next) {
-		moveRowToRow(row->next, row);
-	}
-}
-
-void moveRowUp(row_t *row) {
-	if (row->previous) {
-		if (row->previous->previous) {
-			moveRowToRow(row->previous->previous, row);
-		} else {
-			moveRowToColumn(row->column, row);
-		}
-	}
-}
-
 void commands() {
 	int fd = open(fifopath, O_RDONLY);
 	
@@ -396,14 +380,14 @@ void commands() {
 	
 	switch(command[1]) {
 		case COMMAND_BORDER_THICKNESS:
+		case COMMAND_PADDING_ALL:
+		case COMMAND_PADDING_HORIZONTAL:
+		case COMMAND_PADDING_VERTICAL:
 		case COMMAND_MARGIN_ALL:
 		case COMMAND_MARGIN_TOP:
 		case COMMAND_MARGIN_BOTTOM:
 		case COMMAND_MARGIN_LEFT:
 		case COMMAND_MARGIN_RIGHT:
-		case COMMAND_PADDING_ALL:
-		case COMMAND_PADDING_HORIZONTAL:
-		case COMMAND_PADDING_VERTICAL:
 		for (size_t m = 0; m < monitorCount; m++) {
 			if (monitors[m].table) recalculateTable(monitors[m].table);
 		}
@@ -437,9 +421,9 @@ void handleMapRequest(xcb_map_request_event_t *event) {
 	);
 	xcb_change_window_attributes_checked(
 		global.connection, event->window, XCB_CW_EVENT_MASK, (uint32_t[]) {
-			XCB_EVENT_MASK_ENTER_WINDOW | XCB_EVENT_MASK_LEAVE_WINDOW
+			XCB_EVENT_MASK_ENTER_WINDOW
+			| XCB_EVENT_MASK_LEAVE_WINDOW
 			| XCB_EVENT_MASK_FOCUS_CHANGE
-			| XCB_EVENT_MASK_RESIZE_REDIRECT
 		}
 	);
 	setBorderColor(event->window, global.border.unfocused);

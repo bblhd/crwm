@@ -74,6 +74,8 @@ row_t *newRowAtRow(row_t *, xcb_window_t);
 void growVertically(row_t *row, int amount);
 void growHorizontally(row_t *row, int amount);
 
+void moveRowUp(row_t *row);
+void moveRowDown(row_t *row);
 void moveRowLeft(row_t *row);
 void moveRowRight(row_t *row);
 

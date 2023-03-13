@@ -111,6 +111,22 @@ void growHorizontally(row_t *row, int amount) {
 	recalculateTable(row->column->table);
 }
 
+void moveRowDown(row_t *row) {
+	if (row->next) {
+		moveRowToRow(row->next, row);
+	}
+}
+
+void moveRowUp(row_t *row) {
+	if (row->previous) {
+		if (row->previous->previous) {
+			moveRowToRow(row->previous->previous, row);
+		} else {
+			moveRowToColumn(row->column, row);
+		}
+	}
+}
+
 void moveRowLeft(row_t *row) {
 	if (!row->column->previous) {
 		if (!row->previous && !row->next) return;
@@ -141,7 +157,7 @@ void moveRowToTable(table_t *table, row_t *row) {
 }
 
 void moveRowToColumn(column_t *column, row_t *row) {
-	if (row->column == column) return;
+	if (row->previous == NULL && row->column == column) return;
 	table_t *oldTable = row->column->table;
 	if (oldTable->monitor && !column->table->monitor) {
 		hideRow(row);
@@ -154,7 +170,7 @@ void moveRowToColumn(column_t *column, row_t *row) {
 }
 
 void moveRowToRow(row_t *to, row_t *from) {
-	if (to != from) return;
+	if (to->next == from) return;
 	table_t *oldTable = from->column->table;
 	if (oldTable->monitor && !to->column->table->monitor) {
 		hideRow(from);
