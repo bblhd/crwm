@@ -308,11 +308,13 @@ void recalculateTable(table_t *table) {
 			else h = (table->monitor->height - instance->margin.top - instance->margin.bottom)
 				- (y - table->monitor->y - instance->margin.top);
 			
+			uint16_t border = instance->border.thickness < 0 ? 0 : instance->border.thickness;
+			
 			uint16_t mask = XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y
 				| XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT
 				| XCB_CONFIG_WINDOW_BORDER_WIDTH;
 			xcb_configure_window(instance->connection, row->window, mask, (uint32_t[]) {
-				x, y, w - 2*instance->border.thickness, h - 2*instance->border.thickness, instance->border.thickness
+				x, y, w - 2*border, h - 2*border, border
 			});
 			
 			y += h + instance->padding.vertical;

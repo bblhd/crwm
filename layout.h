@@ -18,13 +18,13 @@ struct Instance {
 	xcb_connection_t *connection;
 	xcb_window_t root;
 	struct {
-		uint16_t vertical, horizontal;
+		int16_t vertical, horizontal;
 	} padding;
 	struct {
-		uint16_t top, bottom, left, right;
+		int16_t top, bottom, left, right;
 	} margin;
 	struct {
-		uint16_t thickness;
+		int16_t thickness;
 		color_t focused, unfocused;
 	} border;
 };
