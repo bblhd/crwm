@@ -2,6 +2,7 @@
 #define CRWM_LAYOUT_H
 
 #include <xcb/xcb.h>
+#include <xcb/randr.h>
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -33,6 +34,7 @@ struct Monitor {
 	table_t *table;
 	uint16_t x,y,width,height;
 	instance_t *instance;
+	char *name;
 };
 
 struct Table {

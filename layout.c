@@ -26,7 +26,12 @@ void showTable(table_t *table);
 void hideRow(row_t *row);
 
 void sendTableToMonitor(monitor_t *monitor, table_t *table) {
+	if (table == NULL) return;
 	if (table->monitor == monitor) return;
+	if (monitor == NULL) {
+		hideTable(table);
+		return;
+	}
 	
 	monitor_t *otherMonitor = table->monitor;
 	table_t *otherTable = monitor->table;

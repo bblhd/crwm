@@ -45,6 +45,8 @@ void focus(xcb_window_t window);
 void lookAtWindow(xcb_window_t);
 void warpMouseToCenterOfMonitor(monitor_t *monitor);
 
+void updateMonitor(xcb_randr_output_t output);
+void removeMonitor(xcb_randr_output_t output);
 monitor_t *getActiveMonitor();
 row_t *manage(xcb_window_t);
 void unmanage(row_t *client);
@@ -61,9 +63,16 @@ enum AtomOfXCB {WM_PROTOCOLS, WM_DELETE_WINDOW, ATOMCOUNT};
 const char *atomStrings[ATOMCOUNT] = {"WM_PROTOCOLS", "WM_DELETE_WINDOW"};
 xcb_atom_t atoms[ATOMCOUNT];
 
-#define MAX_MONITORS 8
-monitor_t monitors[MAX_MONITORS];
-size_t monitorCount = 0;
+uint8_t randrEvent;
+
+struct MonitorList {
+	struct MonitorList *next;
+	monitor_t monitor;
+};
+
+typedef struct MonitorList monlist_t;
+
+monlist_t *monitors;
 
 #define TABLE_COUNT 9
 table_t tables[TABLE_COUNT];
@@ -119,8 +128,16 @@ void setup() {
 		die("Unable to connect to X.\n");
 	}
 	
+	const xcb_query_extension_reply_t *randrfacts = xcb_get_extension_data(global.connection, &xcb_randr_id);
+	if (!randrfacts->present) {
+		die("Randr extension is not present.\n");
+	}
+	randrEvent = randrfacts->first_event;
+	
 	xcb_screen_t *screen = xcb_setup_roots_iterator(xcb_get_setup(global.connection)).data;
 	global.root = screen->root;
+	
+	xcb_randr_select_input(global.connection, global.root, XCB_RANDR_NOTIFY_MASK_OUTPUT_CHANGE);
 	
 	xcb_change_window_attributes_checked(
 		global.connection, global.root, XCB_CW_EVENT_MASK, (uint32_t []) {
@@ -176,11 +193,15 @@ void *thread_commands(pthread_t *other) {
 	return NULL;
 }
 
+void handleRandrNotify(xcb_randr_notify_event_t *event);
+
 void events() {
 	xcb_generic_event_t *event = xcb_wait_for_event(global.connection);
 	do {
 		uint8_t evtype = event->response_type & ~0x80;
-		if (evtype < sizeof(eventHandlers)/sizeof(event_handler_t) && eventHandlers[evtype]) {
+		if (evtype == randrEvent+XCB_RANDR_NOTIFY) {
+			handleRandrNotify((xcb_randr_notify_event_t *) event);
+		} else if (evtype < sizeof(eventHandlers)/sizeof(event_handler_t) && eventHandlers[evtype]) {
 			//printf("SUPPORTED %u\n", evtype);
 			eventHandlers[evtype](event);
 		}// else printf("UNSUPPORTED %u\n", evtype);
@@ -224,37 +245,10 @@ void setupMonitors() {
 			), NULL
 		);
 
-	xcb_timestamp_t timestamp = resources->config_timestamp;
-	monitorCount = xcb_randr_get_screen_resources_current_outputs_length(resources);
-	if (monitorCount > MAX_MONITORS) monitorCount = MAX_MONITORS;
 	xcb_randr_output_t *randr_outputs = xcb_randr_get_screen_resources_current_outputs(resources);
-	
-	for (size_t i = 0; i < monitorCount; i++) {
-		xcb_randr_get_output_info_reply_t *output
-			= xcb_randr_get_output_info_reply(
-				global.connection,
-				xcb_randr_get_output_info(global.connection, randr_outputs[i], timestamp),
-				XCB_NONE
-			);
-		
-		if (
-			output == NULL
-			|| output->crtc == XCB_NONE
-			|| output->connection == XCB_RANDR_CONNECTION_DISCONNECTED
-		) continue;
-
-		xcb_randr_get_crtc_info_reply_t *crtc = xcb_randr_get_crtc_info_reply(
-			global.connection, xcb_randr_get_crtc_info(global.connection, output->crtc, timestamp), NULL
-		);
-	    free(output);
-		
-		monitors[i] = (struct Monitor) {
-			.table=&tables[i], .instance=&global,
-			.x=crtc->x, .y=crtc->y, .width=crtc->width, .height=crtc->height
-		};
-		tables[i].monitor = &monitors[i];
-		
-	    free(crtc);
+	size_t n = xcb_randr_get_screen_resources_current_outputs_length(resources);
+	for (size_t i = 0; i < n; i++) {
+		updateMonitor(randr_outputs[i]);
 	}
 
 	free(resources);
@@ -390,8 +384,8 @@ void commands() {
 		case COMMAND_MARGIN_BOTTOM:
 		case COMMAND_MARGIN_LEFT:
 		case COMMAND_MARGIN_RIGHT:
-		for (size_t m = 0; m < monitorCount; m++) {
-			if (monitors[m].table) recalculateTable(monitors[m].table);
+		for (monlist_t *entry = monitors; entry; entry = entry->next) {
+			if (entry->monitor.table) recalculateTable(entry->monitor.table);
 		}
 		break;
 		default:
@@ -440,6 +434,16 @@ void handleDestroyNotify(xcb_destroy_notify_event_t *event) {
 	}
 }
 
+void handleRandrNotify(xcb_randr_notify_event_t *event) {
+	if (event->subCode == XCB_RANDR_NOTIFY_OUTPUT_CHANGE) {
+		if (event->u.oc.connection == XCB_RANDR_CONNECTION_DISCONNECTED) {
+			removeMonitor(event->u.oc.output);
+		} else {
+			updateMonitor(event->u.oc.output);
+		}
+	}
+}
+
 const event_handler_t eventHandlers[] = {
 	[XCB_ENTER_NOTIFY] = (event_handler_t) handleEnterNotify,
 	[XCB_LEAVE_NOTIFY] = (event_handler_t) handleLeaveNotify,
@@ -449,6 +453,89 @@ const event_handler_t eventHandlers[] = {
 	[XCB_DESTROY_NOTIFY] = (event_handler_t) handleDestroyNotify,
 	[XCB_UNMAP_NOTIFY] = (event_handler_t) handleDestroyNotify,
 };
+
+void removeMonitor(xcb_randr_output_t output) {
+	xcb_randr_get_output_info_reply_t *outputinfo = xcb_randr_get_output_info_reply(
+		global.connection,
+		xcb_randr_get_output_info(global.connection, output, XCB_CURRENT_TIME),
+		XCB_NONE
+	);
+	char *name = (char*) xcb_randr_get_output_info_name(outputinfo);
+	size_t n = xcb_randr_get_output_info_name_length(outputinfo);
+	
+	monlist_t **where = &monitors;
+	while (*where) {
+		if (n == strlen((*where)->monitor.name) && strncmp(name, (*where)->monitor.name, n+1) == 0) break;
+		where = &(*where)->next;
+	}
+	if (*where) {
+		monlist_t *bad = *where;
+		*where = (*where)->next;
+		sendTableToMonitor(NULL, bad->monitor.table);
+		free(bad->monitor.name);
+		free(bad);
+	}
+	
+	free(outputinfo);
+}
+
+table_t *getFirstUnusedTable() {
+	for (int i = 0; i < TABLE_COUNT; i++) {
+		if (tables[i].monitor == NULL) return &tables[i];
+	}
+	return NULL;
+}
+
+monitor_t *getMonitor(char *name, size_t n) {
+	monlist_t **where = &monitors;
+	while (*where) {
+		if (n == strlen((*where)->monitor.name) && strncmp(name, (*where)->monitor.name, n+1) == 0) {
+			return &(*where)->monitor;
+		}
+		where = &(*where)->next;
+	}
+	*where = malloc(sizeof(monlist_t));
+	(*where)->next = NULL;
+	
+	(*where)->monitor.name = malloc(n+1);
+	memcpy((*where)->monitor.name, name, n);
+	(*where)->monitor.name[n] = 0;
+	
+	(*where)->monitor.table = getFirstUnusedTable();
+	(*where)->monitor.table->monitor = &(*where)->monitor;
+	(*where)->monitor.instance = &global;
+	return &(*where)->monitor;
+}
+
+void updateMonitor(xcb_randr_output_t output) {
+	xcb_randr_get_output_info_reply_t *outputinfo = xcb_randr_get_output_info_reply(
+		global.connection,
+		xcb_randr_get_output_info(global.connection, output, XCB_CURRENT_TIME),
+		XCB_NONE
+	);
+	
+	if (
+		outputinfo != NULL
+		&& outputinfo->crtc != XCB_NONE
+		&& outputinfo->connection != XCB_RANDR_CONNECTION_DISCONNECTED
+	) {
+		xcb_randr_get_crtc_info_reply_t *crtcinfo = xcb_randr_get_crtc_info_reply(
+			global.connection, xcb_randr_get_crtc_info(global.connection, outputinfo->crtc, XCB_CURRENT_TIME), NULL
+		);
+		monitor_t *monitor = getMonitor(
+			(char*) xcb_randr_get_output_info_name(outputinfo), 
+			xcb_randr_get_output_info_name_length(outputinfo)
+		);
+		monitor->x = crtcinfo->x;
+		monitor->y = crtcinfo->y;
+		monitor->width = crtcinfo->width;
+		monitor->height = crtcinfo->height;
+		
+		recalculateTable(monitor->table);
+		free(crtcinfo);
+	}
+	free(outputinfo);
+}
 
 monitor_t *getActiveMonitor() {
 	if (focused && focused->column->table->monitor) {
@@ -461,14 +548,15 @@ monitor_t *getActiveMonitor() {
 	uint16_t x=pointer->root_x, y=pointer->root_y;
 	free(pointer);
 	
-	for (size_t m = 0; m < monitorCount; m++) {
+	for (monlist_t *entry = monitors; entry; entry = entry->next) {
 		if (
-			x >= monitors[m].x && x < monitors[m].x + monitors[m].width
-			&& y >= monitors[m].y && y < monitors[m].y + monitors[m].height
-		) return &monitors[m];
+			x >= entry->monitor.x && x < entry->monitor.x + entry->monitor.width
+			&& y >= entry->monitor.y && y < entry->monitor.y + entry->monitor.height
+		) return &entry->monitor;
 	}
 	
-	return monitors;
+	if (monitors) return &monitors->monitor;
+	else return NULL;
 }
 
 row_t *managed(xcb_window_t window) {
