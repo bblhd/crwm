@@ -202,9 +202,8 @@ void events() {
 		if (evtype == randrEvent+XCB_RANDR_NOTIFY) {
 			handleRandrNotify((xcb_randr_notify_event_t *) event);
 		} else if (evtype < sizeof(eventHandlers)/sizeof(event_handler_t) && eventHandlers[evtype]) {
-			//printf("SUPPORTED %u\n", evtype);
 			eventHandlers[evtype](event);
-		}// else printf("UNSUPPORTED %u\n", evtype);
+		}
 		free(event);
 		xcb_flush(global.connection);
 	} while ((event = xcb_poll_for_event(global.connection)));
