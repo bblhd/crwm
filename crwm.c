@@ -1,451 +1,133 @@
-#include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdlib.h>
+
+#include <sys/stat.h>
 #include <unistd.h>
+
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
-
 #include <pthread.h>
-
-#include <ctype.h>
-
-#include <fcntl.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/wait.h>
 
 #include <xcb/xcb.h>
 #include <xcb/randr.h>
 
-#include "ctheme.h"
-#include "layout.h"
-
-void setup();
-void cleanup();
-
-void *thread_commands(pthread_t *a);
-void *thread_events(pthread_t *a);
-
-void reloadColors();
-void setupMonitors();
-void setupAtoms();
+typedef struct Monitor monitor_t;
+typedef struct Table table_t;
+typedef struct Column column_t;
+typedef struct Row row_t;
 
 typedef void (*event_handler_t)(xcb_generic_event_t *);
-const event_handler_t eventHandlers[XCB_GE_GENERIC];
 
-typedef unsigned int uint;
+struct Monitor {
+	table_t *table;
+	monitor_t *next;
+	uint16_t x, y, width, height;
+};
 
-void spawn(char **command);
-void killclient(xcb_window_t);
-void die(char *errstr);
-void setBorderColor(xcb_window_t window, color_t c);
-void unfocus(xcb_window_t window);
-void focus(xcb_window_t window);
-void lookAtWindow(xcb_window_t);
-void warpMouseToCenterOfMonitor(monitor_t *monitor);
+struct Table {
+	monitor_t *monitor;
+	column_t *columns;
+	table_t *next;
+	char id;
+};
 
-void updateMonitor(xcb_randr_output_t output);
-void removeMonitor(xcb_randr_output_t output);
+struct Column {
+	table_t *table;
+	column_t *next, *previous;
+	row_t *rows;
+	uint16_t weight;
+};
+
+struct Row {
+	column_t *column;
+	row_t *next, *previous;
+	xcb_window_t window;
+	uint16_t weight;
+	bool wasUnmappedByWM;
+};
+
+void options(int argc, char **argv);
+
+void setup();
+void setupX();
+void createControlFile();
+void setupTables();
+void setupMonitors();
+void createMonitor(xcb_randr_output_t output);
+
+bool good();
+void *thread_control(pthread_t *);
+void *thread_events(pthread_t *);
+void control();
+void events();
+bool controlLock();
+bool eventsLock();
+
+void handleEnterNotify(xcb_enter_notify_event_t *event);
+void handleFocusIn(xcb_focus_in_event_t *event);
+void handleFocusOut(xcb_focus_out_event_t *event);
+void handleMapRequest(xcb_map_request_event_t *event);
+void handleDestroyNotify(xcb_destroy_notify_event_t *event);
+
+void cleanup();
+void cleanupMonitors();
+void cleanupTables();
+void cleanupColumns(column_t *column);
+void cleanupRows(row_t *row);
+
+row_t *managed(xcb_window_t window);
+row_t *manage(xcb_window_t window);
+xcb_window_t unmanage(row_t *row);
+
+void moveRowUp(row_t *row);
+void moveRowDown(row_t *row);
+void moveRowLeft(row_t *row);
+void moveRowRight(row_t *row);
+
+void growColumn(column_t *column, int amount);
+void growRow(row_t *row, int amount);
+
+table_t *searchForTable(char id);
 monitor_t *getActiveMonitor();
-row_t *manage(xcb_window_t);
-void unmanage(row_t *client);
-row_t *managed(xcb_window_t);
+table_t *getFirstUnusedTable();
+
+void sendTableToMonitor(monitor_t *monitor, table_t *table);
+void sendRowToTable(table_t *table, row_t *row);
+void sendRowToColumn(column_t *column, row_t *row);
+
+void disconnectColumn(column_t *);
+void disconnectRow(row_t *);
+
+void swapRowWithBelow(row_t *row);
+void realignTable(table_t *table);
+void realignColumns(table_t *table);
+void realignRows(column_t *column);
+void realignRowWidth(row_t *row);
+
+void showTable(table_t *table);
+void hideTable(table_t *table);
+
+void warpMouseToCenterOfWindow(xcb_window_t window);
+
+long tonumber(char *str);
+int extractNumeral(char c);
+void die(char *errstr);
+
+xcb_connection_t *connection;
+xcb_window_t root;
+
+monitor_t *monitors;
+table_t *tables;
+row_t *focused;
 
 bool exitWMFlag = false;
-
-char *fifopath;
-
-instance_t global;
-row_t *focused = NULL;
-
-enum AtomOfXCB {WM_PROTOCOLS, WM_DELETE_WINDOW, ATOMCOUNT};
-const char *atomStrings[ATOMCOUNT] = {"WM_PROTOCOLS", "WM_DELETE_WINDOW"};
-xcb_atom_t atoms[ATOMCOUNT];
-
-uint8_t randrEvent;
-
-struct MonitorList {
-	struct MonitorList *next;
-	monitor_t monitor;
-};
-
-typedef struct MonitorList monlist_t;
-
-monlist_t *monitors;
-
-#define TABLE_COUNT 9
-table_t tables[TABLE_COUNT];
-
-enum Commandcodes {
-	COMMAND_NULL,
-	COMMAND_EXIT,
-	COMMAND_RELOAD,
-	COMMAND_CLOSE,
-	COMMAND_MOVE,
-	COMMAND_LOOK,
-	COMMAND_SEND,
-	COMMAND_SWITCH,
-	COMMAND_GROW_VERTICAL,
-	COMMAND_GROW_HORIZONTAL,
-	COMMAND_BORDER_THICKNESS,
-	COMMAND_PADDING_ALL,
-	COMMAND_MARGIN_ALL,
-	COMMAND_PADDING_HORIZONTAL,
-	COMMAND_PADDING_VERTICAL,
-	COMMAND_MARGIN_TOP,
-	COMMAND_MARGIN_BOTTOM,
-	COMMAND_MARGIN_LEFT,
-	COMMAND_MARGIN_RIGHT,
-};
-
-int main(int argc, char *argv[]) {
-	(void) argc;
-	(void) argv;
-	setup();
-	
-	pthread_t eventThread;
-	pthread_t commandThread;
-	
-	pthread_create(&eventThread, NULL, (void*(*)(void*)) thread_events, &commandThread);
-	pthread_create(&commandThread, NULL, (void*(*)(void*)) thread_commands, &eventThread);
-	
-	pthread_join(eventThread, NULL);
-	pthread_join(commandThread, NULL);
-	
-	cleanup();
-}
-
-bool setupFIFO();
-
-void setup() {
-	if (!setupFIFO()) {
-		die("Unable to setup crwm fifo.\n");
-	}
-	
-	global.connection = xcb_connect(NULL, NULL);
-	if (xcb_connection_has_error(global.connection)) {
-		die("Unable to connect to X.\n");
-	}
-	
-	const xcb_query_extension_reply_t *randrfacts = xcb_get_extension_data(global.connection, &xcb_randr_id);
-	if (!randrfacts->present) {
-		die("Randr extension is not present.\n");
-	}
-	randrEvent = randrfacts->first_event;
-	
-	xcb_screen_t *screen = xcb_setup_roots_iterator(xcb_get_setup(global.connection)).data;
-	global.root = screen->root;
-	
-	xcb_randr_select_input(global.connection, global.root, XCB_RANDR_NOTIFY_MASK_OUTPUT_CHANGE);
-	
-	xcb_change_window_attributes_checked(
-		global.connection, global.root, XCB_CW_EVENT_MASK, (uint32_t []) {
-			XCB_EVENT_MASK_STRUCTURE_NOTIFY
-			| XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY
-			| XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT
-		}
-	);
-	
-	global.border.thickness = 1;
-	
-	global.padding.horizontal = 0;
-	global.padding.vertical = 0;
-	
-	global.margin.top = 0;
-	global.margin.bottom = 0;
-	global.margin.left = 0;
-	global.margin.right = 0;
-	
-	reloadColors();
-	setupAtoms();
-	setupMonitors();
-	
-	xcb_flush(global.connection);
-}
-
-void cleanupFIFO();
-
-void cleanup() {
-	for (table_t *table = tables; table < tables+TABLE_COUNT; table++) {
-		cleanupTable(table);
-	}
-	xcb_disconnect(global.connection);
-	cleanupFIFO();
-}
-
-bool good() {
-	return !exitWMFlag && !xcb_connection_has_error(global.connection);
-}
-
-void events();
-void *thread_events(pthread_t *other) {
-	while (good()) events();
-	pthread_cancel(*other);
-	return NULL;
-}
-
-void commands();
-void *thread_commands(pthread_t *other) {
-	(void) other;
-	while (good()) commands();
-	pthread_cancel(*other);
-	return NULL;
-}
-
-void handleRandrNotify(xcb_randr_notify_event_t *event);
-
-void events() {
-	xcb_generic_event_t *event = xcb_wait_for_event(global.connection);
-	do {
-		uint8_t evtype = event->response_type & ~0x80;
-		if (evtype == randrEvent+XCB_RANDR_NOTIFY) {
-			handleRandrNotify((xcb_randr_notify_event_t *) event);
-		} else if (evtype < sizeof(eventHandlers)/sizeof(event_handler_t) && eventHandlers[evtype]) {
-			eventHandlers[evtype](event);
-		}
-		free(event);
-		xcb_flush(global.connection);
-	} while ((event = xcb_poll_for_event(global.connection)));
-}
-
-void reloadColors() {
-	ctheme_clear();
-	if (!ctheme_load(NULL)) {
-		ctheme_set(COLORSCHEME_DEFAULT, 1, 0xffffff, BGR);
-		ctheme_set(COLORSCHEME_DEFAULT, 2, 0x000000, BGR);
-		ctheme_set(COLORSCHEME_DEFAULT, 4, 0x9eeeee, BGR);
-		ctheme_set(COLORSCHEME_SELECTED, 1, 0x000000, BGR);
-		ctheme_set(COLORSCHEME_SELECTED, 2, 0xffffff, BGR);
-		ctheme_set(COLORSCHEME_SELECTED, 4, 0x55aaaa, BGR);
-	}
-	global.border.unfocused = ctheme_get(COLORSCHEME_DEFAULT, 4, BGR);
-	global.border.focused = ctheme_get(COLORSCHEME_SELECTED, 4, BGR);
-}
-
-void setupAtoms() {
-	xcb_intern_atom_cookie_t cookies[ATOMCOUNT];
-	for (enum AtomOfXCB i = WM_PROTOCOLS; i < ATOMCOUNT; i++) {
-		cookies[i] = xcb_intern_atom(global.connection, 0, strlen(atomStrings[i]), atomStrings[i]);
-	}
-	for (enum AtomOfXCB i = WM_PROTOCOLS; i < ATOMCOUNT; i++) {
-		xcb_intern_atom_reply_t *reply = xcb_intern_atom_reply(global.connection, cookies[i], NULL);
-		atoms[i] = reply ? reply->atom : XCB_NONE;
-		free(reply);
-	}
-}
-
-//code adapted from https://stackoverflow.com/questions/36966900/xcb-get-all-monitors-ands-their-x-y-coordinates
-void setupMonitors() {
-	xcb_randr_get_screen_resources_current_reply_t *resources
-		= xcb_randr_get_screen_resources_current_reply(
-			global.connection, xcb_randr_get_screen_resources_current(
-				global.connection, global.root
-			), NULL
-		);
-
-	xcb_randr_output_t *randr_outputs = xcb_randr_get_screen_resources_current_outputs(resources);
-	size_t n = xcb_randr_get_screen_resources_current_outputs_length(resources);
-	for (size_t i = 0; i < n; i++) {
-		updateMonitor(randr_outputs[i]);
-	}
-
-	free(resources);
-}
-
-bool setupFIFO() {
-	if (!getenv("DISPLAY")) return false;
-	size_t pathlen = strlen("/tmp/crwm.d/")+strlen(getenv("DISPLAY"))+1;
-	fifopath = malloc(pathlen);
-	snprintf(fifopath, pathlen, "/tmp/crwm.d/%s", getenv("DISPLAY"));
-	
-	if (mkdir("/tmp/crwm.d", S_IRWXU | S_IRWXG | S_IRWXO) == 0 || errno == EEXIST) {
-		if (mkfifo(fifopath, S_IRWXU | S_IRWXG | S_IRWXO) == 0 || errno == EEXIST) return true;
-		rmdir("/tmp/crwm.d");
-	}
-	return false;
-}
-
-void cleanupFIFO() {
-	remove(fifopath);
-	free(fifopath);
-	rmdir("/tmp/crwm.d");
-}
-
-#define ADDUNSIGNEDSIGNED(var, val) {var = (-val < var ? var + val : 0);}
-
-void commands() {
-	int fd = open(fifopath, O_RDONLY);
-	
-	if (!fd) return;
-	
-	char command[2];
-	if (read(fd, command, 2) != 2) {
-		close(fd);
-		return;
-	} else close(fd);
-	
-	switch (command[0]) {
-		case COMMAND_EXIT:
-		exitWMFlag = true;
-		break;
-		case COMMAND_RELOAD:
-		reloadColors();
-		break;
-		
-		case COMMAND_CLOSE:
-		if (focused) killclient(focused->window);
-		break;
-		
-		case COMMAND_MOVE:
-		if (focused) switch (command[1]) {
-			case 'u': moveRowUp(focused); break;
-			case 'd': moveRowDown(focused); break;
-			case 'l': moveRowLeft(focused); break;
-			case 'r': moveRowRight(focused); break;
-			default:
-		}
-		break;
-		case COMMAND_LOOK:
-		if (focused) {
-			switch (command[1]) {
-				case 'u': focused = focused->previous ? focused->previous : focused; break;
-				case 'd': focused = focused->next ? focused->next : focused; break;
-				case 'l': focused = focused->column->previous ? focused->column->previous->rows : focused; break;
-				case 'r': focused = focused->column->next ? focused->column->next->rows : focused; break;
-				default:
-			}
-			lookAtWindow(focused->window);
-		}
-		break;
-		
-		case COMMAND_SEND:
-		if (focused && command[1]-1 >= 0 && command[1]-1 < TABLE_COUNT) {
-			moveRowToTable(&tables[command[1]-1], focused);
-		}
-		break;
-		case COMMAND_SWITCH:
-		if (command[1]-1 >= 0 && command[1]-1 < TABLE_COUNT) {
-			sendTableToMonitor(getActiveMonitor(), &tables[command[1]-1]);
-		}
-		break;
-		
-		case COMMAND_GROW_VERTICAL:
-		if (focused) growVertically(focused, (int) command[1]);
-		break;
-		case COMMAND_GROW_HORIZONTAL:
-		if (focused) growHorizontally(focused, (int) command[1]);
-		break;
-		
-		case COMMAND_BORDER_THICKNESS:
-		global.border.thickness += command[1];
-		break;
-		
-		case COMMAND_PADDING_ALL:
-		global.padding.horizontal += command[1];
-		global.padding.vertical += command[1];
-		break;
-		case COMMAND_PADDING_HORIZONTAL:
-		global.padding.horizontal += command[1];
-		break;
-		case COMMAND_PADDING_VERTICAL:
-		global.padding.vertical += command[1];
-		break;
-		
-		case COMMAND_MARGIN_ALL:
-		global.margin.top += command[1];
-		global.margin.bottom += command[1];
-		global.margin.left += command[1];
-		global.margin.right += command[1];
-		break;
-		case COMMAND_MARGIN_TOP:
-		global.margin.top += command[1];
-		break;
-		case COMMAND_MARGIN_BOTTOM:
-		global.margin.bottom += command[1];
-		break;
-		case COMMAND_MARGIN_LEFT:
-		global.margin.left += command[1];
-		break;
-		case COMMAND_MARGIN_RIGHT:
-		global.margin.right += command[1];
-		break;
-		default:
-	}
-	
-	switch(command[1]) {
-		case COMMAND_BORDER_THICKNESS:
-		case COMMAND_PADDING_ALL:
-		case COMMAND_PADDING_HORIZONTAL:
-		case COMMAND_PADDING_VERTICAL:
-		case COMMAND_MARGIN_ALL:
-		case COMMAND_MARGIN_TOP:
-		case COMMAND_MARGIN_BOTTOM:
-		case COMMAND_MARGIN_LEFT:
-		case COMMAND_MARGIN_RIGHT:
-		for (monlist_t *entry = monitors; entry; entry = entry->next) {
-			if (entry->monitor.table) recalculateTable(entry->monitor.table);
-		}
-		break;
-		default:
-	}
-}
-
-void handleEnterNotify(xcb_enter_notify_event_t *event) {
-	focus(event->event);
-}
-
-void handleLeaveNotify(xcb_leave_notify_event_t *event) {
-	unfocus(event->event);
-}
-
-
-void handleFocusIn(xcb_focus_in_event_t *event) {
-	setBorderColor(event->event, global.border.focused);
-}
-
-void handleFocusOut(xcb_focus_out_event_t *event) {
-	setBorderColor(event->event, global.border.unfocused);
-}
-
-void handleMapRequest(xcb_map_request_event_t *event) {
-	xcb_configure_window(
-		global.connection, event->window, XCB_CONFIG_WINDOW_BORDER_WIDTH, (uint32_t[]) {
-			global.border.thickness
-		}
-	);
-	xcb_change_window_attributes_checked(
-		global.connection, event->window, XCB_CW_EVENT_MASK, (uint32_t[]) {
-			XCB_EVENT_MASK_ENTER_WINDOW
-			| XCB_EVENT_MASK_LEAVE_WINDOW
-			| XCB_EVENT_MASK_FOCUS_CHANGE
-		}
-	);
-	setBorderColor(event->window, global.border.unfocused);
-	manage(event->window);
-}
-
-void handleDestroyNotify(xcb_destroy_notify_event_t *event) {
-	row_t *client = managed(event->window);
-	if (client && !checkUnmapping(client)) {
-		if (focused && focused->window == client->window) focused = NULL;
-		unmanage(client);
-	}
-}
-
-void handleRandrNotify(xcb_randr_notify_event_t *event) {
-	if (event->subCode == XCB_RANDR_NOTIFY_OUTPUT_CHANGE) {
-		if (event->u.oc.connection == XCB_RANDR_CONNECTION_DISCONNECTED) {
-			removeMonitor(event->u.oc.output);
-		} else {
-			updateMonitor(event->u.oc.output);
-		}
-	}
-}
+bool controlLockFlag = false;
+bool eventsLockFlag = false;
 
 const event_handler_t eventHandlers[] = {
 	[XCB_ENTER_NOTIFY] = (event_handler_t) handleEnterNotify,
-	[XCB_LEAVE_NOTIFY] = (event_handler_t) handleLeaveNotify,
 	[XCB_FOCUS_IN] = (event_handler_t) handleFocusIn,
 	[XCB_FOCUS_OUT] = (event_handler_t) handleFocusOut,
 	[XCB_MAP_REQUEST] = (event_handler_t) handleMapRequest,
@@ -453,87 +135,487 @@ const event_handler_t eventHandlers[] = {
 	[XCB_UNMAP_NOTIFY] = (event_handler_t) handleDestroyNotify,
 };
 
-void removeMonitor(xcb_randr_output_t output) {
-	xcb_randr_get_output_info_reply_t *outputinfo = xcb_randr_get_output_info_reply(
-		global.connection,
-		xcb_randr_get_output_info(global.connection, output, XCB_CURRENT_TIME),
-		XCB_NONE
-	);
-	char *name = (char*) xcb_randr_get_output_info_name(outputinfo);
-	size_t n = xcb_randr_get_output_info_name_length(outputinfo);
+char *tablesIDString = "123456789";
+
+uint16_t borderThickness = 1;
+uint32_t focusedColor = 0x9eeeee;
+uint32_t unfocusedColor = 0x55aaaa;
+
+uint16_t padding = 0;
+
+uint16_t topMargin = 0;
+uint16_t bottomMargin = 0;
+uint16_t leftMargin = 0;
+uint16_t rightMargin = 0;
+
+bool controlFileIsManaged = false;
+char *controlFile = NULL;
+
+int main(int argc, char **argv) {
+	options(argc, argv);
+	setup();
 	
-	monlist_t **where = &monitors;
-	while (*where) {
-		if (n == strlen((*where)->monitor.name) && strncmp(name, (*where)->monitor.name, n+1) == 0) break;
+	pthread_t eventThread;
+	pthread_t controlThread;
+	
+	pthread_create(&eventThread, NULL, (void*(*)(void*)) thread_events, &controlThread);
+	pthread_create(&controlThread, NULL, (void*(*)(void*)) thread_control, &eventThread);
+	
+	pthread_join(eventThread, NULL);
+	pthread_join(controlThread, NULL); 
+	
+	while (good()) events(); 
+	cleanup();
+	return 0;
+}
+
+void options(int argc, char **argv) {
+	int i = 1;
+	while (i < argc) {
+		if (i+1 >= argc) die("Option provided with no parameters.");
+		if (strcmp(argv[i], "--tables") == 0) {
+			tablesIDString = argv[i+1];
+			i+=2;
+		} else if (strcmp(argv[i], "--file") == 0) {
+			controlFile = argv[i+1];
+			i+=2;
+		} else if (strcmp(argv[i], "--padding") == 0) {
+			padding = (uint16_t) tonumber(argv[i+1]);
+			i+=2;
+		} else if (strcmp(argv[i], "--margin") == 0) {
+			uint16_t amount = (uint16_t) tonumber(argv[i+1]);
+			topMargin = amount;
+			bottomMargin = amount;
+			leftMargin = amount;
+			rightMargin = amount;
+			i+=2;
+		} else if (strcmp(argv[i], "--top") == 0) {
+			topMargin = (uint16_t) tonumber(argv[i+1]);
+			i+=2;
+		} else if (strcmp(argv[i], "--bottom") == 0) {
+			bottomMargin = (uint16_t) tonumber(argv[i+1]);
+			i+=2;
+		} else if (strcmp(argv[i], "--left") == 0) {
+			leftMargin = (uint16_t) tonumber(argv[i+1]);
+			i+=2;
+		} else if (strcmp(argv[i], "--right") == 0) {
+			rightMargin = (uint16_t) tonumber(argv[i+1]);
+			i+=2;
+		} else if (strcmp(argv[i], "--focused") == 0) {
+			focusedColor = (uint32_t) tonumber(argv[i+1]);
+			i+=2;
+		} else if (strcmp(argv[i], "--unfocused") == 0) {
+			unfocusedColor = (uint32_t) tonumber(argv[i+1]);
+			i+=2;
+		} else if (strcmp(argv[i], "--border") == 0) {
+			borderThickness = (uint16_t) tonumber(argv[i+1]);
+			i+=2;
+		} else die("Unrecognised commandline argument.");
+	}
+}
+
+void setup() {
+	setupX();
+	createControlFile();
+	setupTables();
+	setupMonitors();
+}
+
+void createControlFile() {
+	if (controlFile) return;
+	controlFileIsManaged = true;
+	
+	size_t pathlen = strlen("/tmp/crwm.d/")+strlen(getenv("DISPLAY"))+1;
+	controlFile = malloc(pathlen);
+	if (!controlFile) die("Could not allocate control file path.");
+	snprintf(controlFile, pathlen, "/tmp/crwm.d/%s", getenv("DISPLAY"));
+	
+	if (mkdir("/tmp/crwm.d", S_IRWXU | S_IRWXG | S_IRWXO) == 0 || errno == EEXIST) {
+		if (mkfifo(controlFile, S_IRWXU | S_IRWXG | S_IRWXO) == 0 || errno == EEXIST) return;
+		rmdir("/tmp/crwm.d");
+	}
+	die("Unable to create control file.");
+}
+
+void setupTables() {
+	table_t **where = &tables;
+	for (int i = 0; tablesIDString[i]; i++) {
+		*where = calloc(1,sizeof(table_t));
+		if (!*where) die("Could not allocate table.");
+		(*where)->id = tablesIDString[i];
 		where = &(*where)->next;
 	}
-	if (*where) {
-		monlist_t *bad = *where;
-		*where = (*where)->next;
-		sendTableToMonitor(NULL, bad->monitor.table);
-		free(bad->monitor.name);
-		free(bad);
-	}
-	
-	free(outputinfo);
 }
 
-table_t *getFirstUnusedTable() {
-	for (int i = 0; i < TABLE_COUNT; i++) {
-		if (tables[i].monitor == NULL) return &tables[i];
-	}
-	return NULL;
-}
-
-monitor_t *getMonitor(char *name, size_t n) {
-	monlist_t **where = &monitors;
-	while (*where) {
-		if (n == strlen((*where)->monitor.name) && strncmp(name, (*where)->monitor.name, n+1) == 0) {
-			return &(*where)->monitor;
+void setupX() {
+	if (!getenv("DISPLAY")) die("Could not get display.");
+	connection = xcb_connect(NULL, NULL);
+	if (xcb_connection_has_error(connection)) die("Unable to connect to X.\n");
+	const xcb_query_extension_reply_t *randrfacts = xcb_get_extension_data(connection, &xcb_randr_id);
+	if (!randrfacts->present) die("Randr extension is not present.\n");
+	xcb_screen_t *screen = xcb_setup_roots_iterator(xcb_get_setup(connection)).data;
+	root = screen->root;
+	xcb_change_window_attributes_checked(
+		connection, root, XCB_CW_EVENT_MASK, (uint32_t []) {
+			XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY
+			| XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT
 		}
-		where = &(*where)->next;
-	}
-	*where = malloc(sizeof(monlist_t));
-	(*where)->next = NULL;
-	
-	(*where)->monitor.name = malloc(n+1);
-	memcpy((*where)->monitor.name, name, n);
-	(*where)->monitor.name[n] = 0;
-	
-	(*where)->monitor.table = getFirstUnusedTable();
-	(*where)->monitor.table->monitor = &(*where)->monitor;
-	(*where)->monitor.instance = &global;
-	return &(*where)->monitor;
+	);
+	xcb_flush(connection);
 }
 
-void updateMonitor(xcb_randr_output_t output) {
+void setupMonitors() {
+	xcb_randr_get_screen_resources_current_reply_t *resources
+		= xcb_randr_get_screen_resources_current_reply(
+			connection, xcb_randr_get_screen_resources_current(
+				connection, root
+			), NULL
+		);
+
+	xcb_randr_output_t *randr_outputs
+		= xcb_randr_get_screen_resources_current_outputs(resources);
+	int n = xcb_randr_get_screen_resources_current_outputs_length(resources);
+	for (int i = 0; i < n; i++) createMonitor(randr_outputs[i]);
+
+	free(resources);
+}
+
+void createMonitor(xcb_randr_output_t output) {
 	xcb_randr_get_output_info_reply_t *outputinfo = xcb_randr_get_output_info_reply(
-		global.connection,
-		xcb_randr_get_output_info(global.connection, output, XCB_CURRENT_TIME),
+		connection,
+		xcb_randr_get_output_info(connection, output, XCB_CURRENT_TIME),
 		XCB_NONE
 	);
-	
 	if (
 		outputinfo != NULL
 		&& outputinfo->crtc != XCB_NONE
 		&& outputinfo->connection != XCB_RANDR_CONNECTION_DISCONNECTED
 	) {
 		xcb_randr_get_crtc_info_reply_t *crtcinfo = xcb_randr_get_crtc_info_reply(
-			global.connection, xcb_randr_get_crtc_info(global.connection, outputinfo->crtc, XCB_CURRENT_TIME), NULL
+			connection, xcb_randr_get_crtc_info(
+				connection, outputinfo->crtc, XCB_CURRENT_TIME
+			), NULL
 		);
-		monitor_t *monitor = getMonitor(
-			(char*) xcb_randr_get_output_info_name(outputinfo), 
-			xcb_randr_get_output_info_name_length(outputinfo)
-		);
-		monitor->x = crtcinfo->x;
-		monitor->y = crtcinfo->y;
-		monitor->width = crtcinfo->width;
-		monitor->height = crtcinfo->height;
-		
-		recalculateTable(monitor->table);
+		monitor_t *monitor = calloc(1,sizeof(monitor_t));
+		if (!monitor) die("Could not allocate monitor.");
+		table_t *table = getFirstUnusedTable();
+		if (!table) die("More monitors than tables.");
+		*monitor = (monitor_t) {
+			table, .next=monitors,
+			crtcinfo->x, crtcinfo->y, crtcinfo->width, crtcinfo->height
+		};
+		table->monitor = monitor;
+		monitors = monitor;
 		free(crtcinfo);
 	}
 	free(outputinfo);
+}
+
+bool good() {
+	return !exitWMFlag && !xcb_connection_has_error(connection);
+}
+
+bool controlLock() {
+	do {
+		controlLockFlag = false;
+		while (eventsLockFlag) usleep(100);
+		controlLockFlag = true;
+	} while (eventsLockFlag);
+}
+
+bool eventsLock() {
+	eventsLockFlag = true;
+	while (controlLockFlag) usleep(100);
+}
+
+void *thread_control(pthread_t *other) {
+	(void) other;
+	while (good()) control();
+	pthread_cancel(*other);
+	return NULL;
+}
+
+void control() {
+	FILE *file = fopen(controlFile, "rw");
+	if (!file) return;
+	
+	controlLock();
+	
+	char command=0;
+	char where=0;
+	long windownum=0;
+	fscanf(file, "%c%c%i", &command, &where, &windownum);
+	if (command > 0x20) {
+		if (where == '\n') where = 0;
+		row_t *client = focused;
+		if (windownum) client = managed((xcb_window_t) windownum);
+		
+		switch (command) {
+			case 'x':
+			exitWMFlag = true;
+			break;
+			case 'm':
+			if (client) switch (where) {
+				case 'u': moveRowUp(client); break;
+				case 'd': moveRowDown(client); break;
+				case 'l': moveRowLeft(client); break;
+				case 'r': moveRowRight(client); break;
+			}
+			break;
+			case 'l':
+			if (client) {
+				switch (where) {
+					case 'u': client = client->previous ? client->previous : client; break;
+					case 'd': client = client->next ? client->next : client; break;
+					case 'l': client = client->column->previous ? client->column->previous->rows : client; break;
+					case 'r': client = client->column->next ? client->column->next->rows : client; break;
+				}
+				warpMouseToCenterOfWindow(client->window);
+			}
+			break;
+			case 's':
+			if (client) sendRowToTable(searchForTable(where), client);
+			break;
+			case 't':
+			sendTableToMonitor(getActiveMonitor(), searchForTable(where));
+			break;
+			case 'v':
+			if (client) {
+				if (where == '=') growRow(client, -client->weight);
+				else growRow(client, extractNumeral(where));
+			}
+			break;
+			case 'h':
+			if (client) {
+				if (where == '=') growColumn(client->column, -client->column->weight);
+				else growColumn(client->column, extractNumeral(where));
+			}
+			break;
+		}
+	} 
+	fclose(file);
+	
+	controlLockFlag = false;
+}
+
+void *thread_events(pthread_t *other) {
+	while (good()) events();
+	pthread_cancel(*other);
+	return NULL;
+}
+
+void events() {
+	xcb_generic_event_t *event = xcb_wait_for_event(connection);
+	
+	eventsLock();
+	
+	do {
+		uint8_t evtype = event->response_type & ~0x80;
+		if (evtype < sizeof(eventHandlers)/sizeof(event_handler_t) && eventHandlers[evtype]) {
+			eventHandlers[evtype](event);
+		}
+		free(event);
+		xcb_flush(connection);
+	} while ((event = xcb_poll_for_event(connection)));
+	
+	eventsLockFlag = false;
+}
+
+void handleEnterNotify(xcb_enter_notify_event_t *event) {
+	xcb_set_input_focus(
+		connection, XCB_INPUT_FOCUS_POINTER_ROOT,
+		event->event, XCB_CURRENT_TIME
+	);
+}
+
+void handleFocusIn(xcb_focus_in_event_t *event) {
+	xcb_change_window_attributes(
+		connection, event->event,
+		XCB_CW_BORDER_PIXEL, (uint32_t[]) {focusedColor}
+	);
+	focused = managed(event->event);
+}
+
+void handleFocusOut(xcb_focus_out_event_t *event) {
+	xcb_change_window_attributes(
+		connection, event->event,
+		XCB_CW_BORDER_PIXEL, (uint32_t[]) {unfocusedColor}
+	);
+}
+
+void handleMapRequest(xcb_map_request_event_t *event) {
+	xcb_change_window_attributes_checked(
+		connection, event->window, XCB_CW_EVENT_MASK, (uint32_t[]) {
+			XCB_EVENT_MASK_ENTER_WINDOW
+			| XCB_EVENT_MASK_FOCUS_CHANGE
+		}
+	);
+	manage(event->window);
+}
+
+void handleDestroyNotify(xcb_destroy_notify_event_t *event) {
+	row_t *client = managed(event->window);
+	if (client) if (client->wasUnmappedByWM) {
+		client->wasUnmappedByWM = false;
+	} else {
+		if (focused && focused->window == client->window) focused = NULL;
+		unmanage(client);
+	}
+}
+
+void cleanup() {
+	if (controlFileIsManaged) {
+		remove(controlFile);
+		free(controlFile);
+		rmdir("/tmp/crwm.d");
+	}
+	cleanupMonitors();
+	cleanupTables();
+	xcb_disconnect(connection);
+}
+
+void cleanupMonitors() {
+	monitor_t *monitor = monitors;
+	while (monitor) {
+		monitor_t *next = monitor->next;
+		free(monitor);
+		monitor = next;
+	}
+}
+
+void cleanupTables() {
+	table_t *table = tables;
+	while (table) {
+		table_t *next = table->next;
+		cleanupColumns(table->columns);
+		free(table);
+		table = next;
+	}
+}
+
+void cleanupColumns(column_t *column) {
+	while (column) {
+		column_t *next = column->next;
+		cleanupRows(column->rows);
+		free(column);
+		column = next;
+	}
+}
+
+void cleanupRows(row_t *row) {
+	while (row) {
+		row_t *next = row->next;
+		free(row);
+		row = next;
+	}
+}
+
+row_t *managed(xcb_window_t window) {
+	for (table_t *table = tables; table; table = table->next) {
+		for (column_t *column = table->columns; column; column = column->next) {
+			for (row_t *row = column->rows; row; row = row->next) {
+				if (row->window == window) return row;
+			}
+		}
+	}
+	return NULL;
+}
+
+row_t *manage(xcb_window_t window) {
+	row_t *row = managed(window);
+	if (!row) {
+		row = calloc(1,sizeof(row_t));
+		if (!row) die("Could not allocate row.");
+		row->window = window;
+		if (focused) {
+			if (!focused->column->next) {
+				focused->column->next = calloc(1,sizeof(column_t));
+				if (!focused->column->next) die("Could not allocate column.");
+				focused->column->next->table = focused->column->table;
+				focused->column->next->previous = focused->column;
+				realignColumns(focused->column->table);
+			}
+			sendRowToColumn(focused->column->next, row);
+		} else sendRowToTable(getActiveMonitor()->table, row);
+		
+		xcb_configure_window(
+			connection, row->window, XCB_CONFIG_WINDOW_BORDER_WIDTH,
+			(uint32_t[]) {borderThickness}
+		);
+		xcb_change_window_attributes(
+			connection, row->window,
+			XCB_CW_BORDER_PIXEL, (uint32_t[]) {unfocusedColor}
+		);
+		if (row->column->table->monitor) realignRowWidth(row);
+		xcb_flush(connection);
+	}
+	return row;
+}
+
+xcb_window_t unmanage(row_t *row) {
+	xcb_window_t window = row->window;
+	disconnectRow(row);
+	free(row);
+	return window;
+}
+
+void moveRowUp(row_t *row) {
+	if (row->previous) swapRowWithBelow(row->previous);
+}
+
+void moveRowDown(row_t *row) {
+	swapRowWithBelow(row);
+}
+
+void moveRowLeft(row_t *row) {
+	if (!row->column->previous) {
+		if (!row->next && !row->previous) return;
+		row->column->previous = calloc(1,sizeof(column_t));
+		if (!row->column->previous) die("Could not allocate column.");
+		row->column->previous->table = row->column->table;
+		row->column->previous->next = row->column;
+		row->column->table->columns = row->column->previous;
+		realignColumns(focused->column->table);
+	}
+	sendRowToColumn(row->column->previous, row);
+}
+
+void moveRowRight(row_t *row) {
+	if (!row->column->next) {
+		if (!row->next && !row->previous) return;
+		row->column->next = calloc(1,sizeof(column_t));
+		if (!row->column->next) die("Could not allocate column.");
+		row->column->next->table = row->column->table;
+		row->column->next->previous = row->column;
+		realignColumns(focused->column->table);
+	}
+	sendRowToColumn(row->column->next, row);
+}
+
+void growColumn(column_t *column, int amount) {
+	if (-amount >= (int) column->weight) column->weight = 0;
+	else column->weight = (uint16_t) ((int)column->weight + amount);
+	realignColumns(column->table);
+}
+
+void growRow(row_t *row, int amount) {
+	if (-amount >= (int) row->weight) row->weight = 0;
+	else row->weight = (uint16_t) ((int)row->weight + amount);
+	realignRows(row->column);
+}
+
+table_t *searchForTable(char id) {
+	for (table_t *table = tables; table; table = table->next) {
+		if (table->id == id) return table;
+	}
+	return NULL;
+}
+
+table_t *getFirstUnusedTable() {
+	for (table_t *table = tables; table; table = table->next) {
+		if (!table->monitor) return table;
+	}
+	return NULL;
 }
 
 monitor_t *getActiveMonitor() {
@@ -542,114 +624,251 @@ monitor_t *getActiveMonitor() {
 	}
 	
 	xcb_query_pointer_reply_t *pointer = xcb_query_pointer_reply(
-		global.connection, xcb_query_pointer(global.connection, global.root), XCB_NONE
+		connection, xcb_query_pointer(connection, root), XCB_NONE
 	);
 	uint16_t x=pointer->root_x, y=pointer->root_y;
 	free(pointer);
 	
-	for (monlist_t *entry = monitors; entry; entry = entry->next) {
+	for (monitor_t *monitor = monitors; monitor; monitor = monitor->next) {
 		if (
-			x >= entry->monitor.x && x < entry->monitor.x + entry->monitor.width
-			&& y >= entry->monitor.y && y < entry->monitor.y + entry->monitor.height
-		) return &entry->monitor;
+			x >= monitor->x && x < monitor->x + monitor->width
+			&& y >= monitor->y && y < monitor->y + monitor->height
+		) return monitor;
 	}
+	return monitors;
+}
+
+void sendTableToMonitor(monitor_t *monitor, table_t *table) {
+	if (!monitor || !table) return;
+	if (monitor == table->monitor) return;
+	if (table->monitor) table->monitor->table = monitor->table;
+	if (monitor->table) {
+		monitor->table->monitor = table->monitor;
+		if (table->monitor) realignTable(monitor->table);
+		else hideTable(monitor->table);
+	}
+	table->monitor = monitor;
+	monitor->table = table;
+	showTable(table);
+	realignTable(table);
+}
+
+void sendRowToTable(table_t *table, row_t *row) {
+	if (!table->columns) {
+		table->columns = calloc(1,sizeof(column_t));
+		if (!table->columns) die("Could not allocate column.");
+		table->columns->table = table;
+	}
+	sendRowToColumn(table->columns, row);
+}
+
+void sendRowToColumn(column_t *column, row_t *row) {
+	bool hide = row->column && (row->column->table->monitor && !column->table->monitor);
+	bool show = !row->column || (!row->column->table->monitor && column->table->monitor);
 	
-	if (monitors) return &monitors->monitor;
-	else return NULL;
-}
-
-row_t *managed(xcb_window_t window) {
-	for (table_t *table = tables; table < tables+TABLE_COUNT; table++) {
-		row_t *row = findRowInTable(table, window);
-		if (row) return row;
-	}
-	return NULL;
-}
-
-
-row_t *manage(xcb_window_t window) {
-	row_t *row = managed(window);
-	if (row) return row;
-	monitor_t *m = getActiveMonitor();
-	if (focused && focused->column->table->monitor == m) return newRowAtRow(focused, window);
-	else return newRowAtTable(m->table, window);
-}
-
-void unmanage(row_t *client) {
-	removeRow(client);
-}
-
-void killclient(xcb_window_t window) {
-	if (atoms[WM_PROTOCOLS] && atoms[WM_DELETE_WINDOW]) {
-		xcb_client_message_event_t ev;
-		
-		memset(&ev, 0, sizeof(ev));
-		ev.response_type = XCB_CLIENT_MESSAGE;
-		ev.window = window;
-		ev.format = 32;
-		ev.type = atoms[WM_PROTOCOLS];
-		ev.data.data32[0] = atoms[WM_DELETE_WINDOW];
-		ev.data.data32[1] = XCB_CURRENT_TIME;
-		
-		xcb_send_event(global.connection, 0, window, XCB_EVENT_MASK_NO_EVENT, (char *) &ev);
+	disconnectRow(row);
+	if (column->rows) {
+		row_t *preceding = column->rows;
+		while (preceding->next) preceding = preceding->next;
+		preceding->next = row;
+		row->previous = preceding;
+		preceding->next = row;
 	} else {
-		xcb_kill_client(global.connection, window);
+		column->rows = row;
+		row->previous = NULL;
+	}
+	row->next = NULL;
+	row->column = column;
+	
+	if (column->table->monitor) {
+		realignRows(row->column);
+		realignRowWidth(row);
+	}
+	if (hide) {
+		row->wasUnmappedByWM = true;
+		xcb_unmap_window(connection, row->window);
+	}
+	if (show) xcb_map_window(connection, row->window);
+	xcb_flush(connection);
+}
+
+void disconnectColumn(column_t *column) {
+	if (column->next) column->next->previous = column->previous;
+	if (column->previous) column->previous->next = column->next;
+	else column->table->columns = column->next;
+	if (column->table->monitor) realignColumns(column->table);
+}
+
+void disconnectRow(row_t *row) {
+	if (row->next) row->next->previous = row->previous;
+	if (row->previous) row->previous->next = row->next;
+	else if (row->column) row->column->rows = row->next;
+	if (row->column) {
+		if (!row->column->rows) {
+			disconnectColumn(row->column);
+			free(row->column);
+		} else if (row->column->table->monitor) realignRows(row->column);
 	}
 }
 
-void setBorderColor(xcb_window_t window, color_t c) {
-	if (global.border.thickness > 0 && window != global.root && window != 0) {
-		xcb_change_window_attributes(global.connection, window, XCB_CW_BORDER_PIXEL, (uint32_t[]) {c});
+void swapRowWithBelow(row_t *row) {
+	if (!row->next) return;
+	row_t *other = row->next;
+	
+	table_t *table = row->column->table;
+	uint16_t effectiveHeight = table->monitor->height + padding - bottomMargin - topMargin;
+	if (bottomMargin + topMargin >= table->monitor->height + padding) effectiveHeight = 0;
+	
+	uint16_t totalRowWeights = 0;
+	for (row_t *r = row->column->rows; r; r = r->next) {
+		totalRowWeights += r->weight+1;
+		effectiveHeight -= padding;
+	}
+	uint16_t y = table->monitor->y + topMargin;
+	for (row_t *r = row->previous; r; r = r->previous) {
+		uint16_t height = effectiveHeight * (r->weight+1) / totalRowWeights;
+		y += height + padding;
+	}
+	uint16_t height = effectiveHeight * (other->weight+1) / totalRowWeights;
+	
+	xcb_configure_window(
+		connection, row->window, XCB_CONFIG_WINDOW_Y,
+		(uint32_t[]) {y+height+padding}
+	);
+	xcb_configure_window(
+		connection, other->window, XCB_CONFIG_WINDOW_Y,
+		(uint32_t[]) {y}
+	);
+	
+	xcb_flush(connection);
+	
+	if (!row->previous) row->column->rows = other;
+	row->next = other->next;
+	if (row->next) row->next->previous = row;
+	other->previous = row->previous;
+	if (other->previous) other->previous->next = other;
+	row->previous = other;
+	other->next = row;
+}
+
+void realignTable(table_t *table) {
+	realignColumns(table);
+	for (column_t *column = table->columns; column; column = column->next) {
+		realignRows(column);
 	}
 }
 
-void focus(xcb_window_t window) {
-	if (window > 0 && window != global.root) {
-		xcb_set_input_focus(global.connection, XCB_INPUT_FOCUS_POINTER_ROOT, window, XCB_CURRENT_TIME);
-		focused = managed(window);
+void realignColumns(table_t *table) {
+	uint16_t effectiveWidth = table->monitor->width + padding - rightMargin - leftMargin;
+	if (rightMargin + leftMargin >= table->monitor->width + padding) effectiveWidth = 0;
+	
+	uint16_t totalColumnWeights = 0;
+	for (column_t *column = table->columns; column; column = column->next) {
+		totalColumnWeights += column->weight+1;
+		effectiveWidth -= padding;
+	}
+	uint16_t x = table->monitor->x + leftMargin;
+	for (column_t *column = table->columns; column; column = column->next) {
+		uint16_t width = effectiveWidth * (column->weight+1) / totalColumnWeights;
+		for (row_t *row = column->rows; row; row = row->next) {
+			xcb_configure_window(
+				connection, row->window, 
+				XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_WIDTH,
+				(uint32_t[]) {x, width<2*borderThickness ? 0 : width-2*borderThickness}
+			);
+		}
+		x += width+padding;
+		xcb_flush(connection);
 	}
 }
 
-void unfocus(xcb_window_t window) {
-	if (focused && focused->window == window) {
-		xcb_set_input_focus(global.connection, XCB_INPUT_FOCUS_POINTER_ROOT, global.root, XCB_CURRENT_TIME);
-		focused = NULL;
+void realignRows(column_t *column) {
+	uint16_t effectiveHeight = column->table->monitor->height + padding - bottomMargin - topMargin;
+	if (bottomMargin + topMargin >= column->table->monitor->height + padding) effectiveHeight = 0;
+	
+	uint16_t totalRowWeights = 0;
+	for (row_t *row = column->rows; row; row = row->next) {
+		totalRowWeights += row->weight+1;
+		effectiveHeight -= padding;
+	}
+	uint16_t y = column->table->monitor->y + topMargin;
+	for (row_t *row = column->rows; row; row = row->next) {
+		uint16_t height = effectiveHeight * (row->weight+1) / totalRowWeights;
+		xcb_configure_window(
+			connection, row->window, 
+			XCB_CONFIG_WINDOW_Y | XCB_CONFIG_WINDOW_HEIGHT,
+			(uint32_t[]) {y, height<2*borderThickness ? 0 : height-2*borderThickness}
+		);
+		y += height+padding;
+	}
+	xcb_flush(connection);
+}
+
+void realignRowWidth(row_t *row) {
+	table_t *table = row->column->table;
+	uint16_t effectiveWidth = table->monitor->width + padding - rightMargin - leftMargin;
+	if (rightMargin + leftMargin >= table->monitor->width + padding) effectiveWidth = 0;
+	
+	uint16_t totalColumnWeights = 0;
+	for (column_t *column = table->columns; column; column = column->next) {
+		totalColumnWeights += column->weight+1;
+		effectiveWidth -= padding;
+	}
+	uint16_t x = table->monitor->x + leftMargin;
+	for (column_t *column = row->column->previous; column; column = column->previous) {
+		uint16_t width = effectiveWidth * (column->weight+1) / totalColumnWeights;
+		x += width + padding;
+	}
+	uint16_t width = effectiveWidth * (row->column->weight+1) / totalColumnWeights;
+	xcb_configure_window(
+		connection, row->window, 
+		XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_WIDTH,
+		(uint32_t[]) {x, width<2*borderThickness ? 0 : width-2*borderThickness}
+	);
+
+	xcb_flush(connection);
+}
+
+void showTable(table_t *table) {
+	for (column_t *column = table->columns; column; column = column->next) {
+		for (row_t *row = column->rows; row; row = row->next) {
+			xcb_map_window(connection, row->window);
+		}
+		xcb_flush(connection);
 	}
 }
 
-void spawn(char **command) {
-	if (fork() == 0) {
-		if (fork() != 0) _exit(0);
-		setsid();
-		execvp(command[0], command);
-		_exit(0);
+void hideTable(table_t *table) {
+	for (column_t *column = table->columns; column; column = column->next) {
+		for (row_t *row = column->rows; row; row = row->next) {
+			row->wasUnmappedByWM = true;
+			xcb_unmap_window(connection, row->window);
+		}
+		xcb_flush(connection);
 	}
-	wait(NULL);
 }
 
 void warpMouseToCenterOfWindow(xcb_window_t window) {
 	uint16_t x, y;
 	xcb_get_geometry_reply_t *geom = xcb_get_geometry_reply(
-		global.connection, xcb_get_geometry(global.connection, window), NULL
+		connection, xcb_get_geometry(connection, window), NULL
 	);
 	x = geom->width >> 1;
 	y = geom->height >> 1;
 	free(geom);
-	xcb_warp_pointer(global.connection, XCB_NONE, window, 0,0,0,0, x,y);
+	xcb_warp_pointer(connection, XCB_NONE, window, 0,0,0,0, x,y);
+	xcb_flush(connection);
 }
 
-void warpMouseToCenterOfMonitor(monitor_t *monitor) {
-	xcb_warp_pointer(
-		global.connection, XCB_NONE, global.root, 0,0,0,0,
-		monitor->x+(monitor->width>>1),monitor->y+(monitor->height>>1)
-	);
+long tonumber(char *str) {
+	return strtol(str, NULL, 0);
 }
 
-void lookAtWindow(xcb_window_t window) {
-	warpMouseToCenterOfWindow(window);
-	focus(window);
+int extractNumeral(char c) {
+	return c>='A' &&  c<='Z' ? c-'A'+1 : c>='a' && c<='z' ? 'a'-c-1 : 0;
 }
 
-void die(char *errstr) {
-	exit(write(STDERR_FILENO, errstr, strlen(errstr)) < 0 ? -1 : 1);
+void die(char *message) {
+	fprintf(stderr, "%s\n", message);
+	exit(1);
 }
