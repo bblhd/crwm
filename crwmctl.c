@@ -103,9 +103,9 @@ void interpret(char **args) {
 		if (!page) die("Missing page ID in send command.");
 		send('s',page,window);
 	} else if (token("switch", &args)) {
+		if (!token("to", &args)) die("Missing 'to' in switch command.");
 		char page = tokenchar(&args);
 		if (!page) die("Missing page ID in switch command.");
-		if (!token("to", &args)) die("Missing 'to' in switch command.");
 		send('t',page,0);
 	} else die("Unrecognised crwm command.");
 }
