@@ -108,6 +108,7 @@ void realignRowWidth(row_t *row);
 
 void showTable(table_t *table);
 void hideTable(table_t *table);
+void hideRow(row_t *row);
 
 void warpMouseToCenterOfWindow(xcb_window_t window);
 void closeWindow(xcb_window_t window);
@@ -447,6 +448,7 @@ void handleEnterNotify(xcb_enter_notify_event_t *event) {
 		connection, XCB_INPUT_FOCUS_POINTER_ROOT,
 		event->event, XCB_CURRENT_TIME
 	);
+	focused = managed(event->event);
 }
 
 void handleFocusIn(xcb_focus_in_event_t *event) {
@@ -454,7 +456,6 @@ void handleFocusIn(xcb_focus_in_event_t *event) {
 		connection, event->event,
 		XCB_CW_BORDER_PIXEL, (uint32_t[]) {focusedColor}
 	);
-	focused = managed(event->event);
 }
 
 void handleFocusOut(xcb_focus_out_event_t *event) {
@@ -574,6 +575,7 @@ row_t *manage(xcb_window_t window) {
 }
 
 xcb_window_t unmanage(row_t *row) {
+	if (row == focused) focused = NULL;
 	xcb_window_t window = row->window;
 	disconnectRow(row);
 	free(row);
@@ -698,10 +700,7 @@ void sendRowToColumn(column_t *column, row_t *row) {
 		realignRows(row->column);
 		realignRowWidth(row);
 	}
-	if (hide) {
-		row->wasUnmappedByWM = true;
-		xcb_unmap_window(connection, row->window);
-	}
+	if (hide) hideRow(row);
 	if (show) xcb_map_window(connection, row->window);
 	xcb_flush(connection);
 }
@@ -855,11 +854,16 @@ void showTable(table_t *table) {
 void hideTable(table_t *table) {
 	for (column_t *column = table->columns; column; column = column->next) {
 		for (row_t *row = column->rows; row; row = row->next) {
-			row->wasUnmappedByWM = true;
-			xcb_unmap_window(connection, row->window);
+			hideRow(row);
 		}
 		xcb_flush(connection);
 	}
+}
+
+void hideRow(row_t *row) {
+	row->wasUnmappedByWM = true;
+	if (row == focused) focused = NULL;
+	xcb_unmap_window(connection, row->window);
 }
 
 void warpMouseToCenterOfWindow(xcb_window_t window) {
