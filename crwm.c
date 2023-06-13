@@ -344,9 +344,8 @@ void control() {
 	char command=0;
 	char where=0;
 	long windownum=0;
-	fscanf(file, "%c%c%i", &command, &where, &windownum);
+	fscanf(file, "%c[%c]%i", &command, &where, &windownum);
 	if (command > 0x20) {
-		if (where == '\n') where = 0;
 		row_t *client = focused;
 		if (windownum) client = managed((xcb_window_t) windownum);
 		
@@ -370,26 +369,31 @@ void control() {
 					case 'l': client = client->column->previous ? client->column->previous->rows : client; break;
 					case 'r': client = client->column->next ? client->column->next->rows : client; break;
 				}
+				sendTableToMonitor(getActiveMonitor(), client->column->table);
 				warpMouseToCenterOfWindow(client->window);
 			}
 			break;
+			case 'v':
+			if (client) switch (where) {
+				case '+': growRow(client, 1); break;
+				case '-': growRow(client, -1); break;
+				case '=': growRow(client, -client->weight); break;
+				default: growRow(client, extractNumeral(where));
+			}
+			break;
+			case 'h':
+			if (client) switch (where) {
+				case '+': growColumn(client->column, 1); break;
+				case '-': growColumn(client->column, -1); break;
+				case '=': growColumn(client->column, -client->column->weight); break;
+				default: growColumn(client->column, extractNumeral(where));
+			}
+			break;2
 			case 's':
 			if (client) sendRowToTable(searchForTable(where), client);
 			break;
 			case 't':
 			sendTableToMonitor(getActiveMonitor(), searchForTable(where));
-			break;
-			case 'v':
-			if (client) {
-				if (where == '=') growRow(client, -client->weight);
-				else growRow(client, extractNumeral(where));
-			}
-			break;
-			case 'h':
-			if (client) {
-				if (where == '=') growColumn(client->column, -client->column->weight);
-				else growColumn(client->column, extractNumeral(where));
-			}
 			break;
 		}
 	} 
@@ -870,5 +874,6 @@ int extractNumeral(char c) {
 
 void die(char *message) {
 	fprintf(stderr, "%s\n", message);
+	if (connection) xcb_disconnect(connection);
 	exit(1);
 }
