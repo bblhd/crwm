@@ -110,6 +110,7 @@ void showTable(table_t *table);
 void hideTable(table_t *table);
 
 void warpMouseToCenterOfWindow(xcb_window_t window);
+void closeWindow(xcb_window_t window);
 
 long tonumber(char *str);
 int extractNumeral(char c);
@@ -125,6 +126,8 @@ row_t *focused;
 bool exitWMFlag = false;
 bool controlLockFlag = false;
 bool eventsLockFlag = false;
+
+xcb_atom_t WM_PROTOCOLS, WM_DELETE_WINDOW;
 
 const event_handler_t eventHandlers[] = {
 	[XCB_ENTER_NOTIFY] = (event_handler_t) handleEnterNotify,
@@ -261,6 +264,17 @@ void setupX() {
 			| XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT
 		}
 	);
+	xcb_intern_atom_reply_t *reply = xcb_intern_atom_reply(
+		connection,xcb_intern_atom(connection,0,12,"WM_PROTOCOLS"),NULL
+	);
+	WM_PROTOCOLS = reply ? reply->atom : XCB_NONE;
+	free(reply);
+	reply = xcb_intern_atom_reply(
+		connection,xcb_intern_atom(connection,0,16,"WM_DELETE_WINDOW"),NULL
+	);
+	WM_DELETE_WINDOW = reply ? reply->atom : XCB_NONE;
+	free(reply);
+	
 	xcb_flush(connection);
 }
 
@@ -353,6 +367,9 @@ void control() {
 			case 'x':
 			exitWMFlag = true;
 			break;
+			case 'c':
+			if (client) closeWindow(client->window);
+			break;
 			case 'm':
 			if (client) switch (where) {
 				case 'u': moveRowUp(client); break;
@@ -388,7 +405,7 @@ void control() {
 				case '=': growColumn(client->column, -client->column->weight); break;
 				default: growColumn(client->column, extractNumeral(where));
 			}
-			break;2
+			break;
 			case 's':
 			if (client) sendRowToTable(searchForTable(where), client);
 			break;
@@ -671,18 +688,11 @@ void sendRowToColumn(column_t *column, row_t *row) {
 	bool show = !row->column || (!row->column->table->monitor && column->table->monitor);
 	
 	disconnectRow(row);
-	if (column->rows) {
-		row_t *preceding = column->rows;
-		while (preceding->next) preceding = preceding->next;
-		preceding->next = row;
-		row->previous = preceding;
-		preceding->next = row;
-	} else {
-		column->rows = row;
-		row->previous = NULL;
-	}
-	row->next = NULL;
+	row->next = column->rows;
+	row->previous = NULL;
 	row->column = column;
+	column->rows = row;
+	if (row->next) row->next->previous = row;
 	
 	if (column->table->monitor) {
 		realignRows(row->column);
@@ -864,6 +874,25 @@ void warpMouseToCenterOfWindow(xcb_window_t window) {
 	xcb_flush(connection);
 }
 
+void closeWindow(xcb_window_t window) {
+	if (WM_PROTOCOLS && WM_DELETE_WINDOW) {
+		xcb_client_message_event_t ev;
+		
+		memset(&ev, 0, sizeof(ev));
+		ev.response_type = XCB_CLIENT_MESSAGE;
+		ev.window = window;
+		ev.format = 32;
+		ev.type = WM_PROTOCOLS;
+		ev.data.data32[0] = WM_DELETE_WINDOW;
+		ev.data.data32[1] = XCB_CURRENT_TIME;
+		
+		xcb_send_event(connection, 0, window, XCB_EVENT_MASK_NO_EVENT, (char *) &ev);
+	} else {
+		xcb_kill_client(connection, window);
+	}
+	xcb_flush(connection);
+}
+
 long tonumber(char *str) {
 	return strtol(str, NULL, 0);
 }
@@ -874,6 +903,5 @@ int extractNumeral(char c) {
 
 void die(char *message) {
 	fprintf(stderr, "%s\n", message);
-	if (connection) xcb_disconnect(connection);
 	exit(1);
 }
