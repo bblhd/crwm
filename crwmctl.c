@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <string.h>
 
+char **setupControlFile(char **args);
 void interpret(char **args);
 
 void send(char command, char where, uint32_t window);
@@ -19,11 +20,23 @@ uint32_t towindow(char *str);
 long tonumber(char *str);
 void die(char *message);
 
+char *controlFile = NULL;
+
 int main(int argc, char **argv) {
-	if (!getenv("DISPLAY")) die("Could not get display.");
-	if (chdir("/tmp/crwm.d")!=0) die("Could not locate control file.");
-	interpret(argv+1);
+	interpret(setupControlFile(argv+1));
 	return 0;
+}
+
+char **setupControlFile(char **args) {
+	if (token("--file", &args)) {
+		if (*args) controlFile = *args++;
+		else die("No control file path given to '--file'.");
+	} else {
+		controlFile = getenv("DISPLAY");
+		if (!controlFile) die("Could not get display.");
+		if (chdir("/tmp/crwm.d")!=0) die("Could not locate control file.");
+	}
+	return args;
 }
 
 void interpret(char **args) {
@@ -98,12 +111,13 @@ void interpret(char **args) {
 }
 
 void send(char command, char where, uint32_t window) {
-	FILE *file = fopen(getenv("DISPLAY"), "w");
-	if (where) {
+	FILE *file = fopen(controlFile, "w");
+	if (file) {
 		if (window) fprintf(file, "%c[%c]0x%x", command, where, window);
-		else fprintf(file, "%c[%c]", command, where);
-	} else fprintf(file, "%c", command);
-	fclose(file);
+		else if (where) fprintf(file, "%c[%c]", command, where);
+		else fprintf(file, "%c", command);
+		fclose(file);
+	}
 }
 
 int token(char *str, char ***from) {
