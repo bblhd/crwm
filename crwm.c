@@ -113,6 +113,7 @@ void hideRow(row_t *row);
 void warpMouseToCenterOfWindow(xcb_window_t window);
 void closeWindow(xcb_window_t window);
 
+uint32_t tocolor(char *str);
 long tonumber(char *str);
 int extractNumeral(char c);
 void die(char *errstr);
@@ -206,10 +207,10 @@ void options(int argc, char **argv) {
 			rightMargin = (uint16_t) tonumber(argv[i+1]);
 			i+=2;
 		} else if (strcmp(argv[i], "--focused") == 0) {
-			focusedColor = (uint32_t) tonumber(argv[i+1]);
+			focusedColor = (uint32_t) tocolor(argv[i+1]);
 			i+=2;
 		} else if (strcmp(argv[i], "--unfocused") == 0) {
-			unfocusedColor = (uint32_t) tonumber(argv[i+1]);
+			unfocusedColor = (uint32_t) tocolor(argv[i+1]);
 			i+=2;
 		} else if (strcmp(argv[i], "--border") == 0) {
 			borderThickness = (uint16_t) tonumber(argv[i+1]);
@@ -737,20 +738,23 @@ void swapRowWithBelow(row_t *row) {
 		totalRowWeights += r->weight+1;
 		effectiveHeight -= padding;
 	}
-	uint16_t y = table->monitor->y + topMargin;
+	
+	uint16_t yoff = row->column->table->monitor->y + topMargin;
+	uint16_t weighttally = 0;
 	for (row_t *r = row->previous; r; r = r->previous) {
-		uint16_t height = effectiveHeight * (r->weight+1) / totalRowWeights;
-		y += height + padding;
+		weighttally += row->weight+1;
+		yoff += padding;
 	}
-	uint16_t height = effectiveHeight * (other->weight+1) / totalRowWeights;
+	
+	uint16_t newY = yoff+padding+effectiveHeight * (weighttally+other->weight+1) / totalRowWeights;
 	
 	xcb_configure_window(
 		connection, row->window, XCB_CONFIG_WINDOW_Y,
-		(uint32_t[]) {y+height+padding}
+		(uint32_t[]) {newY}
 	);
 	xcb_configure_window(
 		connection, other->window, XCB_CONFIG_WINDOW_Y,
-		(uint32_t[]) {y}
+		(uint32_t[]) {yoff+effectiveHeight*weighttally/totalRowWeights}
 	);
 	
 	xcb_flush(connection);
@@ -780,17 +784,22 @@ void realignColumns(table_t *table) {
 		totalColumnWeights += column->weight+1;
 		effectiveWidth -= padding;
 	}
-	uint16_t x = table->monitor->x + leftMargin;
+	uint16_t xoff = table->monitor->x + leftMargin;
+	uint16_t weighttally = 0;
 	for (column_t *column = table->columns; column; column = column->next) {
 		uint16_t width = effectiveWidth * (column->weight+1) / totalColumnWeights;
 		for (row_t *row = column->rows; row; row = row->next) {
 			xcb_configure_window(
 				connection, row->window, 
 				XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_WIDTH,
-				(uint32_t[]) {x, width<2*borderThickness ? 0 : width-2*borderThickness}
+				(uint32_t[]) {
+					xoff + effectiveWidth * weighttally / totalColumnWeights, 
+					width<2*borderThickness ? 0 : width-2*borderThickness
+				}
 			);
 		}
-		x += width+padding;
+		weighttally += (column->weight+1);
+		xoff += padding;
 		xcb_flush(connection);
 	}
 }
@@ -804,15 +813,21 @@ void realignRows(column_t *column) {
 		totalRowWeights += row->weight+1;
 		effectiveHeight -= padding;
 	}
-	uint16_t y = column->table->monitor->y + topMargin;
+	
+	uint16_t yoff = column->table->monitor->y + topMargin;
+	uint16_t weighttally = 0;
 	for (row_t *row = column->rows; row; row = row->next) {
 		uint16_t height = effectiveHeight * (row->weight+1) / totalRowWeights;
 		xcb_configure_window(
 			connection, row->window, 
 			XCB_CONFIG_WINDOW_Y | XCB_CONFIG_WINDOW_HEIGHT,
-			(uint32_t[]) {y, height<2*borderThickness ? 0 : height-2*borderThickness}
+			(uint32_t[]) {
+				yoff + effectiveHeight * weighttally / totalRowWeights, 
+				height<2*borderThickness ? 0 : height-2*borderThickness
+			}
 		);
-		y += height+padding;
+		weighttally += (row->weight+1);
+		yoff += padding;
 	}
 	xcb_flush(connection);
 }
@@ -827,18 +842,21 @@ void realignRowWidth(row_t *row) {
 		totalColumnWeights += column->weight+1;
 		effectiveWidth -= padding;
 	}
-	uint16_t x = table->monitor->x + leftMargin;
+	uint16_t xoff = table->monitor->x + leftMargin;
+	uint16_t weighttally = 0;
 	for (column_t *column = row->column->previous; column; column = column->previous) {
-		uint16_t width = effectiveWidth * (column->weight+1) / totalColumnWeights;
-		x += width + padding;
+		weighttally += (column->weight+1);
+		xoff += padding;
 	}
 	uint16_t width = effectiveWidth * (row->column->weight+1) / totalColumnWeights;
 	xcb_configure_window(
 		connection, row->window, 
 		XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_WIDTH,
-		(uint32_t[]) {x, width<2*borderThickness ? 0 : width-2*borderThickness}
+		(uint32_t[]) {
+			xoff + effectiveWidth * weighttally / totalColumnWeights,
+			width<2*borderThickness ? 0 : width-2*borderThickness
+		}
 	);
-
 	xcb_flush(connection);
 }
 
@@ -899,6 +917,11 @@ void closeWindow(xcb_window_t window) {
 
 long tonumber(char *str) {
 	return strtol(str, NULL, 0);
+}
+
+uint32_t tocolor(char *str) {
+	if (str && *str == '#') return strtol(str+1, NULL, 16);
+	else return 0;
 }
 
 int extractNumeral(char c) {
