@@ -42,7 +42,7 @@ char **setupControlFile(char **args) {
 void interpret(char **args) {
 	if (token("close", &args)) {
 		uint32_t window = tokenwindow(&args);
-		send('c','w',window);
+		send('x','w',window);
 	} else if (token("exit", &args)) {
 		send('x',0,0);
 	} else if (token("move", &args)) {

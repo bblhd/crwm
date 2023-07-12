@@ -367,10 +367,8 @@ void control() {
 		
 		switch (command) {
 			case 'x':
-			exitWMFlag = true;
-			break;
-			case 'c':
-			if (client) closeWindow(client->window);
+			if (where == 0) exitWMFlag = true;
+			else if (where == 'w' && client) closeWindow(client->window);
 			break;
 			case 'm':
 			if (client) switch (where) {
