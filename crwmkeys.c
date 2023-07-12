@@ -72,10 +72,10 @@ struct Keybinding {
 	{.mod = SECONDARY_MOD, .sym = XK_9, .command = "crwmctl send focused to 9"},
 	
 	/* example pulseaudio keybindings using pactl
-	{.sym = XF86AudioRaise, .command = "pactl set-sink-volume @DEFAULT_SINK@ +5%"},
-	{.sym = XF86AudioLower, .command = "pactl set-sink-volume @DEFAULT_SINK@ -5%"},
-	{.sym = XF86AudioMute, .command = "pactl set-sink-mute @DEFAULT_SINK@ toggle"},
-	{.sym = XF86AudioMicMute, .command = "pactl set-source-mute @DEFAULT_SOURCE@ toggle"},
+	{.sym = XF86XK_AudioRaiseVolume, .command = "pactl set-sink-volume @DEFAULT_SINK@ +5%"},
+	{.sym = XF86XK_AudioLowerVolume, .command = "pactl set-sink-volume @DEFAULT_SINK@ -5%"},
+	{.sym = XF86XK_AudioMute, .command = "pactl set-sink-mute @DEFAULT_SINK@ toggle"},
+	{.sym = XF86XK_AudioMicMute, .command = "pactl set-source-mute @DEFAULT_SOURCE@ toggle"},
 	*/
 	
 	/* example backlight keybindings using xbacklight
