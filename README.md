@@ -1,14 +1,40 @@
-# ![crwm](https://user-images.githubusercontent.com/20104594/206676265-f699dbf5-7252-4c0f-9e55-e815089ea7b9.svg)
+# crwm
+crwm (Column Row Window Manager, pronounced crumb) is
+a manual tiling window manager for X somewhat inspired by
+plan9's acme text editor, as well as a variety of window
+managers such as bspwm, dwm, i3wm, and rio.
 
-Crwm (Column Row Window Manager, pronounced crumb) is a manual tiling window manager for X somewhat inspired by plan9's acme text editor, as well as a variety of window managers such as bspwm, i3wm, rio, dwm, and others.
-
-The essential pitch behind crwm is that a series of columns each containing a series of rows could be a functional and efficent way of managing the tiling window space. It produces practical ways of managing visible windows, and keeps the system as a whole managable in the eyes of both the programmer and the user.
+It was made in part due to disatisfaction with the lack of layout
+flexibility in dwm, while most alternatives offered too much
+flexibility, more than what seemed necessary. 
 
 ## Usage
+Starting the window manager is done by running `crwm`.
+If you use an `.xinitrc` file, it would be added to there.
+Window operations are issued through an seperate program,
+`crwmctl`. To see some examples of how to use crwmctl,
+see `crwmkeys.c`.
 
-To make crwm your default window manager, replace the command to run your window manager in your `.xinitrc` file with `crwm`.
+In normal use, these commands aren't entered
+manually but instead via a hotkey manager. A sane
+default is provided in the form of `crwmkeys`, but any
+hotkey manager or equivalent will work, such as sxhkd.
+crwmkeys should be run at the same time that crwm is.
 
-The default keybindings for crwm are pretty simple. Default modifier key is meta/windows/command key.
+When a new window is opened, it is opened in the column
+to the right of the focused window. If there are no columns
+to the right of the focused window or there is no focused
+window, a new column is created.
+
+This is also true of moving windows left and right, while
+moving windows up and down only reorders them within the
+same column. The screen's height and width are shared between
+the rows and columns according to their weight, where a row or
+column with more weight gets more real estate allocated to it.
+
+### Hotkeys
+The default hotkeys for crwmkeys are pretty simple.
+The default modifier key is windows/command key.
 
 | Keys | Action |
 | --- | --- |
@@ -23,27 +49,43 @@ The default keybindings for crwm are pretty simple. Default modifier key is meta
 | `mod + [c,v]` | shrinks focused window [horizontally,vertically]
 | `mod + shift + [c,v]` | grows focused window [horizontally,vertically]
 
-All configuration is currently done by editing the source code, although this may be subject to change.
+### Options
+Configuring the various visual settings (padding, margins, borders,
+etc) and some non-visual settings, is done using command line
+options provided to `crwm`.
 
-### Problems/caveats
-
-- All keybindings can be lost at random (uncommonly) and only sometimes will re-enable. This seems to be linked to what programs are currently being managed by crwm, many/most never cause this issue, and some more than others.
-- Multiscreen support is poor, to say the least. Screens must be configured before launch, and they will be treated as one big screen, likely with some non-visible areas getting used.
+| Option | Default Parameter | Action |
+| --- | --- | --- |
+| `-h` | none | Prints a help message display the possible command line options.
+| `-t` | `"123456789"` | Sets the number of tables and their labels. Each character represents a single table and its label.
+| `-f` | `/tmp/crwm.d/$DISPLAY` | Changes the file that crwm reads window operations from that crwmctl has sent.
+| `-p` | `0` | Sets the padding size between windows.
+| `-m` | `0` | Sets the margin size for all sides.
+| `-u,d,l,r` | `0` | Sets the margin size for the top, bottom, left, right side.
+| `-s` | `#9eeeee` | Sets the border colour around the focused window
+| `-n` | `#55aaaa` | Sets the border colour around unfocused windows
+| `-b` | `1` | Sets the border thickness of all windows.
 
 ## Installing
-
-Compile using `make` or `make compile`, and then install it to /usr/local/bin by running `make install` as root.
-
-To uninstall just remove the executable from wherever it was installed (eg: `rm /usr/local/bin/crwm`)
+Compile using `make` and then install it to /usr/local/bin
+by running `make install` as root. It can be uninstalled with
+`make uninstall`, also run as root. `make clean` will remove
+the compiled files from the local directory.
 
 ### Requirements
-- xcb
-- xcb-keysyms
-- lucida sans for X, if status bar is enabled
+- xcb (for crwm and crwmkeys)
+- xcb-randr (for crwm)
+- xcb-keysyms (for crwmkeys)
 
-## Thanks
-
-- I used the [xwm](https://github.com/mcpcpc/xwm) by [Michael Czigler](https://github.com/mcpcpc) as a reference and to practice with xcb which was incredibly helpful due to the lack of documention
-- [Ivan Tikhonov](https://github.com/ITikhonov) made [a program that closes windows using xcb](https://github.com/ITikhonov/wm/blob/master/wmclose.c), of which the code to do so in this project is based off of
-- Thanks to [suckless.org](https://suckless.org) for having a fully featured [wm](https://dwm.suckless.org/) which works at least better than mine
-- Logo made using [dotgrid](https://100r.co/site/dotgrid.html) which is made by [Hundred Rabbits](https://100r.co) aka Rek & Devine
+## Attributions
+- I used the [xcb window manager](https://github.com/mcpcpc/xwm)
+by [Michael Czigler](https://github.com/mcpcpc) as a reference
+and to practice with xcb, which was incredibly helpful due to
+the lack of accessible explicit documention
+- [Ivan Tikhonov](https://github.com/ITikhonov) made 
+[a program that closes windows using xcb]
+(https://github.com/ITikhonov/wm/blob/master/wmclose.c),
+of which the code to do so in this project is based off of
+- Thanks to [suckless.org](https://suckless.org) for having
+a fully featured [wm](https://dwm.suckless.org/) which
+contains functioning examples of how to manage windows
