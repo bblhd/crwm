@@ -23,7 +23,7 @@ void cleanupControls();
 #define PRIMARY_MOD XCB_MOD_MASK_4
 #define SECONDARY_MOD (PRIMARY_MOD|XCB_MOD_MASK_SHIFT)
 
-struct Keybinding {
+struct Hotkey {
 	unsigned int mod;
 	xcb_keysym_t sym;
 	xcb_keycode_t code;
@@ -71,14 +71,14 @@ struct Keybinding {
 	{.mod = SECONDARY_MOD, .sym = XK_8, .command = "crwmctl send focused to 8"},
 	{.mod = SECONDARY_MOD, .sym = XK_9, .command = "crwmctl send focused to 9"},
 	
-	/* example pulseaudio keybindings using pactl
+	/* pulseaudio example keybindings using pactl
 	{.sym = XF86XK_AudioRaiseVolume, .command = "pactl set-sink-volume @DEFAULT_SINK@ +5%"},
 	{.sym = XF86XK_AudioLowerVolume, .command = "pactl set-sink-volume @DEFAULT_SINK@ -5%"},
 	{.sym = XF86XK_AudioMute, .command = "pactl set-sink-mute @DEFAULT_SINK@ toggle"},
 	{.sym = XF86XK_AudioMicMute, .command = "pactl set-source-mute @DEFAULT_SOURCE@ toggle"},
 	*/
 	
-	/* example backlight keybindings using xbacklight
+	/* backlight example keybindings using xbacklight
 	{.sym = XF86XK_MonBrightnessUp, .command = "xbacklight +10"},
 	{.sym = XF86XK_MonBrightnessDown, .command = "xbacklight -10"},
 	*/
@@ -127,7 +127,7 @@ void eventHandler() {
 void setupControls() {
 	xcb_key_symbols_t *keySymbols = xcb_key_symbols_alloc(conn);
 	if (keySymbols) {
-		for (struct Keybinding *key = keys; key->command; key++) {
+		for (struct Hotkey *key = keys; key->command; key++) {
 			key->code = *xcb_key_symbols_get_keycode(keySymbols, key->sym);
 			xcb_grab_key(
 				conn, 0, root, key->mod, key->code,
@@ -157,7 +157,7 @@ void spawn(char **command) {
 }
 
 void keybinding(uint16_t mod, xcb_keycode_t keycode) {
-	for (struct Keybinding *key = keys; key->command; key++) {
+	for (struct Hotkey *key = keys; key->command; key++) {
 		if (mod == key->mod && keycode == key->code) {
 			spawn((char*[]) {"sh", "-c", key->command, NULL});
 			return;
