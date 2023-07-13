@@ -23,6 +23,7 @@ void die(char *message);
 char *controlFile = NULL;
 
 int main(int argc, char **argv) {
+	(void) argc;
 	interpret(setupControlFile(argv+1));
 	return 0;
 }
@@ -136,6 +137,7 @@ char tokenchar(char ***from) {
 		(*from)++;
 		return c;
 	}
+	return 0;
 }
 
 uint32_t tokenwindow(char ***from) {

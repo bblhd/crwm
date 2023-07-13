@@ -62,8 +62,8 @@ void *thread_control(pthread_t *);
 void *thread_events(pthread_t *);
 void control();
 void events();
-bool controlLock();
-bool eventsLock();
+void controlLock();
+void eventsLock();
 
 void handleEnterNotify(xcb_enter_notify_event_t *event);
 void handleFocusIn(xcb_focus_in_event_t *event);
@@ -116,6 +116,7 @@ void closeWindow(xcb_window_t window);
 uint32_t tocolor(char *str);
 long tonumber(char *str);
 int extractNumeral(char c);
+void usleep(unsigned long us);
 void die(char *errstr);
 
 xcb_connection_t *connection;
@@ -331,7 +332,7 @@ bool good() {
 	return !exitWMFlag && !xcb_connection_has_error(connection);
 }
 
-bool controlLock() {
+void controlLock() {
 	do {
 		controlLockFlag = false;
 		while (eventsLockFlag) usleep(100);
@@ -339,7 +340,7 @@ bool controlLock() {
 	} while (eventsLockFlag);
 }
 
-bool eventsLock() {
+void eventsLock() {
 	eventsLockFlag = true;
 	while (controlLockFlag) usleep(100);
 }
@@ -360,7 +361,7 @@ void control() {
 	char command=0;
 	char where=0;
 	long windownum=0;
-	fscanf(file, "%c[%c]%i", &command, &where, &windownum);
+	fscanf(file, "%c[%c]%li", &command, &where, &windownum);
 	if (command > 0x20) {
 		row_t *client = focused;
 		if (windownum) client = managed((xcb_window_t) windownum);
@@ -476,7 +477,9 @@ void handleMapRequest(xcb_map_request_event_t *event) {
 
 void handleDestroyNotify(xcb_destroy_notify_event_t *event) {
 	row_t *client = managed(event->window);
-	if (client) if (client->wasUnmappedByWM) {
+	if (!client) return;
+	
+	if (client->wasUnmappedByWM) {
 		client->wasUnmappedByWM = false;
 	} else {
 		if (focused && focused->window == client->window) focused = NULL;
@@ -924,6 +927,13 @@ uint32_t tocolor(char *str) {
 
 int extractNumeral(char c) {
 	return c>='A' &&  c<='Z' ? c-'A'+1 : c>='a' && c<='z' ? 'a'-c-1 : 0;
+}
+
+void usleep(unsigned long us) {
+	struct timespec ts;
+	ts.tv_sec = us / 1000000;
+	ts.tv_nsec = (us % 1000000) * 1000;
+	nanosleep(&ts, &ts);
 }
 
 void die(char *message) {
