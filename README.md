@@ -66,7 +66,6 @@ options provided to `crwm`.
 | `-n` | `#55aaaa` | Sets the border colour around unfocused windows
 | `-b` | `1` | Sets the border thickness of all windows.
 
-
 ## Installing
 Compile using `make` and then install it to /usr/local/bin
 by running `make install` as root. It can be uninstalled with
