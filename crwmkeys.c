@@ -93,7 +93,6 @@ int main(int argc, char **argv) {
 	if (!xcb_connection_has_error(conn)) {
 		root = xcb_setup_roots_iterator(xcb_get_setup(conn)).data->root;
 		setupControls();
-		xcb_flush(conn);
 		while (!xcb_connection_has_error(conn)) {
 			eventHandler();
 		}
@@ -109,8 +108,15 @@ void eventHandler() {
 	do {
 		switch (ev->response_type & ~0x80) {
 			case XCB_KEY_PRESS:
-			keybinding(((xcb_key_press_event_t *) ev)->state, ((xcb_key_press_event_t *) ev)->detail);
-			break;
+				keybinding(
+					((xcb_key_press_event_t *) ev)->state,
+					((xcb_key_press_event_t *) ev)->detail
+				);
+				break;
+			case XCB_MAPPING_NOTIFY:
+				cleanupControls();
+				setupControls();
+				break;
 		}
 		xcb_flush(conn);
 		free(ev);
@@ -130,23 +136,22 @@ void setupControls() {
 		}
 		xcb_key_symbols_free(keySymbols);
 	}
+	xcb_flush(conn);
 }
 
 void cleanupControls() {
-	for (struct Keybinding *key = keys; key->command; key++) {
-		if (key->code != 0) {
-			xcb_ungrab_key(conn, key->code, root, key->mod);
-			key->code = 0;
-		}
-	}
+	xcb_ungrab_key(conn, XCB_GRAB_ANY, root, XCB_BUTTON_MASK_ANY);
+	xcb_flush(conn);
 }
 
 void spawn(char **command) {
 	if (fork() == 0) {
-		if (fork() != 0) _exit(0);
-		//setsid();
-		execvp(command[0], command);
-		_exit(0);
+		close(xcb_get_file_descriptor(conn));
+		if (fork() == 0) {
+			setsid();
+			execvp(command[0], command);
+		}
+		exit(EXIT_SUCCESS);
 	}
 	wait(NULL);
 }

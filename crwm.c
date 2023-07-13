@@ -5,6 +5,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <ctype.h>
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
@@ -175,48 +176,56 @@ int main(int argc, char **argv) {
 	return 0;
 }
 
+bool optcmp(char *s, char *p) {
+	if (*s++ != '-') return false;
+	if (*s == '-') {
+		while (*++s && *p) {
+			if (tolower(*s) != tolower(*p++)) return false;
+		}
+		return !*s && !*p;
+	}
+	char single = 0;
+	while (*p) {
+		if (isupper(*p)) single = *p;
+		p++;
+	}
+	if (single) return s[0] == single && s[1] == '\0';
+	return false;
+}
+
 void options(int argc, char **argv) {
 	int i = 1;
 	while (i < argc) {
 		if (i+1 >= argc) die("Option provided with no parameters.");
-		if (strcmp(argv[i], "--tables") == 0) {
+		if (optcmp(argv[i], "Tables") == 0) {
 			tablesIDString = argv[i+1];
-			i+=2;
-		} else if (strcmp(argv[i], "--file") == 0) {
+		} else if (optcmp(argv[i], "File") == 0) {
 			controlFile = argv[i+1];
-			i+=2;
-		} else if (strcmp(argv[i], "--padding") == 0) {
+		} else if (optcmp(argv[i], "Padding") == 0) {
 			padding = (uint16_t) tonumber(argv[i+1]);
-			i+=2;
-		} else if (strcmp(argv[i], "--margin") == 0) {
+		} else if (optcmp(argv[i], "Margin") == 0) {
 			uint16_t amount = (uint16_t) tonumber(argv[i+1]);
 			topMargin = amount;
 			bottomMargin = amount;
 			leftMargin = amount;
 			rightMargin = amount;
-			i+=2;
-		} else if (strcmp(argv[i], "--top") == 0) {
+		} else if (optcmp(argv[i], "Up") == 0) {
 			topMargin = (uint16_t) tonumber(argv[i+1]);
-			i+=2;
-		} else if (strcmp(argv[i], "--bottom") == 0) {
+		} else if (optcmp(argv[i], "Down") == 0) {
 			bottomMargin = (uint16_t) tonumber(argv[i+1]);
-			i+=2;
-		} else if (strcmp(argv[i], "--left") == 0) {
+		} else if (optcmp(argv[i], "Left") == 0) {
 			leftMargin = (uint16_t) tonumber(argv[i+1]);
-			i+=2;
-		} else if (strcmp(argv[i], "--right") == 0) {
+		} else if (optcmp(argv[i], "Right") == 0) {
 			rightMargin = (uint16_t) tonumber(argv[i+1]);
-			i+=2;
-		} else if (strcmp(argv[i], "--focused") == 0) {
+		} else if (optcmp(argv[i], "Focused") == 0) {
 			focusedColor = (uint32_t) tocolor(argv[i+1]);
-			i+=2;
-		} else if (strcmp(argv[i], "--unfocused") == 0) {
+		} else if (optcmp(argv[i], "uNfocused") == 0) {
 			unfocusedColor = (uint32_t) tocolor(argv[i+1]);
-			i+=2;
-		} else if (strcmp(argv[i], "--border") == 0) {
+		} else if (optcmp(argv[i], "Border") == 0) {
 			borderThickness = (uint16_t) tonumber(argv[i+1]);
-			i+=2;
 		} else die("Unrecognised commandline argument.");
+		
+		i+=2;
 	}
 }
 

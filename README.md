@@ -12,12 +12,35 @@ flexibility, more than what seemed necessary.
 Starting the window manager is done by running `crwm`.
 If you use an `.xinitrc` file, it would go in there. Window
 operations are issued through an seperate program,
-`crwmctl`.
+`crwmctl`. To see an example of how to use `crwmctl`,
+see the source code for `crwmkeys`.
 
 In normal use, these commands aren't entered
 manually but instead via a hotkey manager. A sane
 default is provided in the form of `crwmkeys`, but any
-hotkey manager or equivalent will work, such as `sxhkd`. `crwmkeys` should be run at the same time that `crwm` is.
+hotkey manager or equivalent will work, such as `sxhkd`.
+`crwmkeys` should be run at the same time that `crwm` is.
+
+### Options
+
+Configuring the various visual settings (padding, margins, borders,
+etc), is done using command line options provided to `crwm`.
+
+| Option | Parameter | Default | Action |
+| --- | --- | --- |
+| `-t`, `--tables` | string | "123456789" | Sets the number of tables, and labels them so they can be accessed from `crwmctl` later. Each character represents a single table and its label.
+| `-f`, `--file` | path | /tmp/crwm.d/`$DISPLAY` | Changes the file that `crwm` reads window operations from that `crwmctl` has sent.
+| `-p`, `--padding` | number | 0 | Sets the padding size between windows.
+| `-m`, `--margin` | number | 0 | Sets the margin size for all sides.
+| `-u`, `--up` | number | 0 | Sets the margin size for the top side.
+| `-d`, `--down` | number | 0 | Sets the margin size for the bottom side.
+| `-l` `--left` | number | 0 | Sets the margin size for the left side.
+| `-r` `--right` | number | 0 | Sets the margin size for the right side.
+| `-f`, `--focused` | colour | #9eeeee | Sets the border colour around the focused window
+| `-n`, `--unfocused` | colour | # 55aaaa | Sets the border colour around unfocused windows
+| `-b`, `--border` | number | 1 | Sets the border thickness of all windows.
+
+### Keybindings
 
 The default keybindings for `crwmkeys` are pretty simple.
 The default modifier key is windows/command key.
