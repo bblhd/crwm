@@ -17,10 +17,10 @@ operations are issued through an seperate program,
 In normal use, these commands aren't entered
 manually but instead via a hotkey manager. A sane
 default is provided in the form of `crwmkeys`, but any
-hotkey manager or equivalent will work, such as `sxhkd`. `crwmkeys` should be run at the same time that crwm is
+hotkey manager or equivalent will work, such as `sxhkd`. `crwmkeys` should be run at the same time that `crwm` is.
 
 The default keybindings for `crwmkeys` are pretty simple.
-The default modifier key is meta/windows/command key.
+The default modifier key is windows/command key.
 
 | Keys | Action |
 | --- | --- |
