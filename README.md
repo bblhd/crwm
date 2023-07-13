@@ -32,8 +32,8 @@ same column. The screen's height and width are shared between
 the rows and columns according to their weight, where a row or
 column with more weight gets more real estate allocated to it.
 
-### Keybindings
-The default keybindings for crwmkeys are pretty simple.
+### Hotkeys
+The default hotkeys for crwmkeys are pretty simple.
 The default modifier key is windows/command key.
 
 | Keys | Action |
@@ -55,7 +55,7 @@ etc) and some non-visual settings, is done using command line
 options provided to `crwm`.
 
 | Option | Default Parameter | Action |
-| --- | --- | ---
+| --- | --- | --- |
 | `-h` | none | Prints a help message display the possible command line options.
 | `-t` | `"123456789"` | Sets the number of tables and their labels. Each character represents a single table and its label.
 | `-f` | `/tmp/crwm.d/$DISPLAY` | Changes the file that crwm reads window operations from that crwmctl has sent.
