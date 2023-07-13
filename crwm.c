@@ -176,56 +176,56 @@ int main(int argc, char **argv) {
 	return 0;
 }
 
-bool optcmp(char *s, char *p) {
-	if (*s++ != '-') return false;
-	if (*s == '-') {
-		while (*++s && *p) {
-			if (tolower(*s) != tolower(*p++)) return false;
-		}
-		return !*s && !*p;
-	}
-	char single = 0;
-	while (*p) {
-		if (isupper(*p)) single = *p;
-		p++;
-	}
-	if (single) return s[0] == single && s[1] == '\0';
-	return false;
-}
-
 void options(int argc, char **argv) {
-	int i = 1;
-	while (i < argc) {
-		if (i+1 >= argc) die("Option provided with no parameters.");
-		if (optcmp(argv[i], "Tables") == 0) {
-			tablesIDString = argv[i+1];
-		} else if (optcmp(argv[i], "File") == 0) {
-			controlFile = argv[i+1];
-		} else if (optcmp(argv[i], "Padding") == 0) {
-			padding = (uint16_t) tonumber(argv[i+1]);
-		} else if (optcmp(argv[i], "Margin") == 0) {
-			uint16_t amount = (uint16_t) tonumber(argv[i+1]);
+	int c = 0;
+	while ((c = getopt(argc, argv, "ht:f:p:m:u:d:l:r:s:n:b")) != -1) switch (c) {
+		case 'h':
+			printf(
+				"%s [-h | -t <tables> | -f <fifo> | -p <padding> "
+				"| -m <margin> | -u <top margin> | -d <bottom margin> "
+				"| -l <left margin> | -r <right margin> | -s <focused color> "
+				"| -n <unfocused color> | -b <border thickness> ...]\n", argv[0]
+			);
+			exit(EXIT_SUCCESS);
+			break;
+		case 't':
+			tablesIDString = optarg;
+			break;
+		case 'f':
+			controlFile = optarg;
+			break;
+		case 'p':
+			padding = (uint16_t) tonumber(optarg);
+			break;
+		case 'm':
+			uint16_t amount = (uint16_t) tonumber(optarg);
 			topMargin = amount;
 			bottomMargin = amount;
 			leftMargin = amount;
 			rightMargin = amount;
-		} else if (optcmp(argv[i], "Up") == 0) {
-			topMargin = (uint16_t) tonumber(argv[i+1]);
-		} else if (optcmp(argv[i], "Down") == 0) {
-			bottomMargin = (uint16_t) tonumber(argv[i+1]);
-		} else if (optcmp(argv[i], "Left") == 0) {
-			leftMargin = (uint16_t) tonumber(argv[i+1]);
-		} else if (optcmp(argv[i], "Right") == 0) {
-			rightMargin = (uint16_t) tonumber(argv[i+1]);
-		} else if (optcmp(argv[i], "Focused") == 0) {
-			focusedColor = (uint32_t) tocolor(argv[i+1]);
-		} else if (optcmp(argv[i], "uNfocused") == 0) {
-			unfocusedColor = (uint32_t) tocolor(argv[i+1]);
-		} else if (optcmp(argv[i], "Border") == 0) {
-			borderThickness = (uint16_t) tonumber(argv[i+1]);
-		} else die("Unrecognised commandline argument.");
-		
-		i+=2;
+			break;
+		case 'u':
+			topMargin = (uint16_t) tonumber(optarg);
+			break;
+		case 'd':
+			bottomMargin = (uint16_t) tonumber(optarg);
+			break;
+		case 'l':
+			leftMargin = (uint16_t) tonumber(optarg);
+			break;
+		case 'r':
+			rightMargin = (uint16_t) tonumber(optarg);
+			break;
+		case 's':
+			focusedColor = (uint32_t) tocolor(optarg);
+			break;
+		case 'n':
+			unfocusedColor = (uint32_t) tocolor(optarg);
+			break;
+		case 'b':
+			borderThickness = (uint16_t) tonumber(optarg);
+			break;
+		default: die("Invalid commandline option.");
 	}
 }
 

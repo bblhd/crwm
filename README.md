@@ -27,18 +27,19 @@ Configuring the various visual settings (padding, margins, borders,
 etc), is done using command line options provided to `crwm`.
 
 | Option | Parameter | Default | Action |
-| --- | --- | --- |
-| `-t`, `--tables` | string | "123456789" | Sets the number of tables, and labels them so they can be accessed from `crwmctl` later. Each character represents a single table and its label.
-| `-f`, `--file` | path | /tmp/crwm.d/`$DISPLAY` | Changes the file that `crwm` reads window operations from that `crwmctl` has sent.
-| `-p`, `--padding` | number | 0 | Sets the padding size between windows.
-| `-m`, `--margin` | number | 0 | Sets the margin size for all sides.
-| `-u`, `--up` | number | 0 | Sets the margin size for the top side.
-| `-d`, `--down` | number | 0 | Sets the margin size for the bottom side.
-| `-l` `--left` | number | 0 | Sets the margin size for the left side.
-| `-r` `--right` | number | 0 | Sets the margin size for the right side.
-| `-f`, `--focused` | colour | #9eeeee | Sets the border colour around the focused window
-| `-n`, `--unfocused` | colour | # 55aaaa | Sets the border colour around unfocused windows
-| `-b`, `--border` | number | 1 | Sets the border thickness of all windows.
+| --- | --- | --- | --- 
+| `-h` | none | none | Prints a help message display the possible command line options.
+| `-t` | string | "123456789" | Sets the number of tables, and labels them so they can be accessed from `crwmctl` later. Each character represents a single table and its label.
+| `-f` | path | /tmp/crwm.d/`$DISPLAY` | Changes the file that `crwm` reads window operations from that `crwmctl` has sent.
+| `-p` | number | 0 | Sets the padding size between windows.
+| `-m` | number | 0 | Sets the margin size for all sides.
+| `-u` | number | 0 | Sets the margin size for the top side.
+| `-d` | number | 0 | Sets the margin size for the bottom side.
+| `-l` | number | 0 | Sets the margin size for the left side.
+| `-r` | number | 0 | Sets the margin size for the right side.
+| `-s` | colour | #9eeeee | Sets the border colour around the focused window
+| `-n` | colour | # 55aaaa | Sets the border colour around unfocused windows
+| `-b` | number | 1 | Sets the border thickness of all windows.
 
 ### Keybindings
 
