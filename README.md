@@ -21,6 +21,15 @@ default is provided in the form of `crwmkeys`, but any
 hotkey manager or equivalent will work, such as sxhkd.
 crwmkeys should be run at the same time that crwm is.
 
+### Behaviour
+
+Tables can be thought of as workspaces. By default there are
+nine of them, corrosponding to the first nine numbers on a
+keyboard. Each table can only be open on one monitor at a
+time, but a given monitor can switch between the tables.
+Note that monitors must be configured **before** running
+crwm, or else they will not be registered correctly.
+
 When a new window is opened, it is opened in the column
 to the right of the focused window. If there are no columns
 to the right of the focused window or there is no focused
@@ -33,8 +42,8 @@ the rows and columns according to their weight, where a row or
 column with more weight gets more real estate allocated to it.
 
 ### Hotkeys
-The default hotkeys for crwmkeys are pretty simple.
-The default modifier key is windows/command key.
+The default hotkeys used by crwmkeys are pretty simple.
+The modifier key used is the windows/command key.
 
 | Keys | Action |
 | --- | --- |
@@ -44,14 +53,14 @@ The default modifier key is windows/command key.
 | `mod + enter` | opens terminal (default: `st`)
 | `mod + [up,down,left,right]` | moves focus [up,down,left,right]
 | `mod + shift + [up,down,left,right]` | moves focused window [up,down,left,right]
-| `mod + [1-9]` | moves to page [1-9]
-| `mod + shift + [1-9]` | moves focused window to page [1-9]
+| `mod + [1-9]` | moves to table [1-9]
+| `mod + shift + [1-9]` | moves focused window to table [1-9]
 | `mod + [c,v]` | shrinks focused window [horizontally,vertically]
 | `mod + shift + [c,v]` | grows focused window [horizontally,vertically]
 
 ### Options
 Configuring the various visual settings (padding, margins, borders,
-etc) and some non-visual settings, is done using command line
+etc) and some non-visual settings is done using command line
 options provided to `crwm`.
 
 | Option | Default Parameter | Action |
@@ -87,5 +96,5 @@ the lack of accessible explicit documention
 (https://github.com/ITikhonov/wm/blob/master/wmclose.c),
 of which the code to do so in this project is based off of
 - Thanks to [suckless.org](https://suckless.org) for having
-a fully featured [wm](https://dwm.suckless.org/) which
+a fully featured [dwm](https://dwm.suckless.org/) which
 contains functioning examples of how to manage windows
