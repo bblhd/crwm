@@ -92,8 +92,7 @@ by [Michael Czigler](https://github.com/mcpcpc) as a reference
 and to practice with xcb, which was incredibly helpful due to
 the lack of accessible explicit documention
 - [Ivan Tikhonov](https://github.com/ITikhonov) made 
-[a program that closes windows using xcb]
-(https://github.com/ITikhonov/wm/blob/master/wmclose.c),
+[a program that closes windows using xcb](https://github.com/ITikhonov/wm/blob/master/wmclose.c),
 of which the code to do so in this project is based off of
 - Thanks to [suckless.org](https://suckless.org) for having
 a fully featured [dwm](https://dwm.suckless.org/) which
