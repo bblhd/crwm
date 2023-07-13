@@ -58,4 +58,4 @@ of which the code to do so in this project is based off of
 a fully featured [wm](https://dwm.suckless.org/) which
 contains functioning examples of how to manage windows
 - Logo made using [dotgrid](https://100r.co/site/dotgrid.html)
-which is made by [Hundred Rabbits](https://100r.co)
+which was made by [Hundred Rabbits](https://100r.co)
