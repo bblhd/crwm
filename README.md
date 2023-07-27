@@ -61,19 +61,22 @@ The modifier key used is the windows/command key.
 ### Options
 Configuring the various visual settings (padding, margins, borders,
 etc) and some non-visual settings is done using command line
-options provided to `crwm`.
+options that are provided to `crwm` when it is called.
 
 | Option | Default Parameter | Action |
 | --- | --- | --- |
 | `-h` | none | Prints a help message display the possible command line options.
 | `-t` | `"123456789"` | Sets the number of tables and their labels. Each character represents a single table and its label.
-| `-f` | `/tmp/crwm.d/$DISPLAY` | Changes the file that crwm reads window operations from that crwmctl has sent.
+| `-f` | `/tmp/crwm.d/$DISPLAY` | Changes the file that crwm reads window operations from that crwmctl has sent. crwmctl also supports this option.
 | `-p` | `0` | Sets the padding size between windows.
 | `-m` | `0` | Sets the margin size for all sides.
 | `-u,d,l,r` | `0` | Sets the margin size for the top, bottom, left, right side.
-| `-s` | `#9eeeee` | Sets the border colour around the focused window
-| `-n` | `#55aaaa` | Sets the border colour around unfocused windows
+| `-s` | `#9eeeee` | Sets the border colour around the focused window.
+| `-n` | `#55aaaa` | Sets the border colour around unfocused windows.
 | `-b` | `1` | Sets the border thickness of all windows.
+
+For example, starting the window manager with `crwm -m 16 -p 16 -b 0`
+would cause windows to have a gap of 16 pixels around them with no border.
 
 ## Installing
 Compile using `make` and then install it to /usr/local/bin
