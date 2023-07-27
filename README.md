@@ -65,7 +65,7 @@ options that are provided to `crwm` when it is called.
 
 | Option | Default Parameter | Action |
 | --- | --- | --- |
-| `-h` | none | Prints a help message display the possible command line options.
+| `-h` | none | Prints a help message displaying the possible command line options.
 | `-t` | `"123456789"` | Sets the number of tables and their labels. Each character represents a single table and its label.
 | `-f` | `/tmp/crwm.d/$DISPLAY` | Changes the file that crwm reads window operations from that crwmctl has sent. crwmctl also supports this option.
 | `-p` | `0` | Sets the padding size between windows.
