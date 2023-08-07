@@ -674,7 +674,7 @@ monitor_t *getActiveMonitor() {
 
 void sendTableToMonitor(monitor_t *monitor, table_t *table) {
 	if (!monitor || !table) return;
-	if (monitor == table->monitor) return;
+	if (monitor == table->monitor || monitor->table == table) return;
 	if (table->monitor) table->monitor->table = monitor->table;
 	if (monitor->table) {
 		monitor->table->monitor = table->monitor;
@@ -697,6 +697,8 @@ void sendRowToTable(table_t *table, row_t *row) {
 }
 
 void sendRowToColumn(column_t *column, row_t *row) {
+	if (row->column == column) return;
+	
 	bool hide = row->column && (row->column->table->monitor && !column->table->monitor);
 	bool show = !row->column || (!row->column->table->monitor && column->table->monitor);
 	
