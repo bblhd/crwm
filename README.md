@@ -1,4 +1,4 @@
-> This project has moved to [sourcehut](git.sr.ht/~cxxvii/crwm). Feel free to view, fork, etc here.
+> This project has moved to [sourcehut](https://git.sr.ht/~cxxvii/crwm). Feel free to view, fork, etc here.
 
 # crwm
 crwm (Column Row Window Manager, pronounced crumb) is
